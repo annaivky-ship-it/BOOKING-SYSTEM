@@ -173,6 +173,24 @@ export const api = {
     return supabase.from('bookings').update(dataToUpdate).eq('id', bookingId).select('*, performer:performer_id(id, name)');
   },
 
+  async updateReferralFeeStatus(bookingId: string, feeAmount: number, receiptPath: string): Promise<{ data: Booking[] | null, error: any }> {
+    const updates = { 
+      referral_fee_paid: true,
+      referral_fee_amount: feeAmount,
+      referral_fee_receipt_path: receiptPath 
+    };
+    if (isDemoMode) {
+      await delay(1000);
+      const bookingIndex = demoBookings.findIndex(b => b.id === bookingId);
+      if (bookingIndex !== -1) {
+        demoBookings[bookingIndex] = { ...demoBookings[bookingIndex], ...updates };
+        return { data: [demoBookings[bookingIndex]], error: null };
+      }
+      return { data: null, error: { message: 'Booking not found' } };
+    }
+    return supabase.from('bookings').update(updates).eq('id', bookingId).select('*, performer:performer_id(id, name)');
+  },
+
   async updateDoNotServeStatus(entryId: string, status: DoNotServeStatus): Promise<{ data: DoNotServeEntry[] | null, error: any }> {
     if (isDemoMode) {
       await delay(1000);
@@ -246,6 +264,7 @@ export const api = {
             verified_at: null,
             performer: { id: p.id, name: p.name },
             performer_eta_minutes: null,
+            referral_fee_paid: false,
         }));
         
         demoBookings.unshift(...newBookings);
@@ -303,7 +322,7 @@ export const api = {
     }
 
     // 3. Prepare booking data
-    const newBookingsData: Omit<Booking, 'id' | 'created_at' | 'performer' | 'verified_by_admin_name' | 'verified_at' | 'deposit_receipt_path' | 'performer_reassigned_from_id' | 'performer_eta_minutes'>[] = requestedPerformers.map(p => ({
+    const newBookingsData: Omit<Booking, 'id' | 'created_at' | 'performer' | 'verified_by_admin_name' | 'verified_at' | 'deposit_receipt_path' | 'performer_reassigned_from_id' | 'performer_eta_minutes' | 'referral_fee_amount' | 'referral_fee_paid' | 'referral_fee_receipt_path'>[] = requestedPerformers.map(p => ({
         performer_id: p.id,
         client_name: formState.fullName,
         client_email: formState.email,

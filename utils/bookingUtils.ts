@@ -1,8 +1,8 @@
 import { allServices } from '../data/mockData';
-import { DEPOSIT_PERCENTAGE } from '../constants';
+import { DEPOSIT_PERCENTAGE, REFERRAL_FEE_PERCENTAGE } from '../constants';
 
 export const calculateBookingCost = (durationHours: number, serviceIds: string[], numPerformers: number) => {
-    if (serviceIds.length === 0 || numPerformers === 0) return { totalCost: 0, depositAmount: 0 };
+    if (serviceIds.length === 0 || numPerformers === 0) return { totalCost: 0, depositAmount: 0, referralFee: 0 };
         
     const durationNum = Number(durationHours) || 0;
     let hourlyCost = 0;
@@ -22,5 +22,6 @@ export const calculateBookingCost = (durationHours: number, serviceIds: string[]
     
     const totalCost = (hourlyCost * numPerformers) + flatCost;
     const depositAmount = totalCost * DEPOSIT_PERCENTAGE;
-    return { totalCost, depositAmount };
+    const referralFee = totalCost * REFERRAL_FEE_PERCENTAGE;
+    return { totalCost, depositAmount, referralFee };
 };

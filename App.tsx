@@ -278,6 +278,15 @@ const App: React.FC = () => {
           rejected: `❗️ Booking Rejected. Unfortunately, your application for ${booking.event_type} has been rejected by administration.`,
         }[status as 'deposit_pending' | 'pending_deposit_confirmation' | 'rejected'];
         if (clientMessage) addCommunication({ sender: 'System', recipient: 'user', message: clientMessage, booking_id: bookingId, type: 'booking_update' });
+
+        const clientPhoneMessage = {
+             pending_deposit_confirmation: { for: 'Client', content: <p>🧾 <strong>Deposit Submitted!</strong><br />We've received your confirmation and will verify it shortly. We'll let you know when everything is confirmed!</p> },
+             rejected: { for: 'Client', content: <p>❗️ <strong>Booking Update</strong><br />Unfortunately, your application for {booking.event_type} with {booking.performer?.name} has been rejected by administration.</p> },
+        }[status as 'pending_deposit_confirmation' | 'rejected'];
+        
+        if (clientPhoneMessage) {
+            showPhoneMessage(clientPhoneMessage as PhoneMessage);
+        }
       }
       
       if (status === 'deposit_pending') showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Booking Approved!</strong><br />Your application for {booking.event_type} with <strong>{booking.performer?.name}</strong> is approved. Please pay the deposit to confirm.<br/><br/><strong>PAYID:</strong> {PAY_ID_EMAIL}<br/><strong>Amount:</strong> ${depositAmount.toFixed(2)}</p> });
@@ -389,6 +398,7 @@ const App: React.FC = () => {
         } else {
           addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking request from ${booking.client_name}${etaMessagePartAdmin}. It is now pending your vetting.`, type: 'admin_message' });
           addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} Your booking is now with our admin team for final review.`, booking_id: booking.id, type: 'booking_update' });
+          showPhoneMessage({ for: 'Client', content: <p>✅ <strong>Performer Accepted!</strong><br /><strong>{performerName}</strong> has accepted your request! Your booking is now with our admin team for a final review.</p> });
         }
       } catch (err) {
           console.error("Failed performer decision update:", err);
@@ -434,10 +444,43 @@ const App: React.FC = () => {
         addCommunication({ sender: 'Admin', recipient: 'user', message: `An update on your booking: ${newPerformer.name} has now been assigned to your event. We are awaiting their confirmation.`, booking_id: booking.id, type: 'booking_update' });
         addCommunication({ sender: 'Admin', recipient: oldPerformerId, message: `Your booking for ${booking.client_name} has been reassigned to another performer by an administrator.`, booking_id: booking.id, type: 'booking_update' });
         addCommunication({ sender: 'Admin', recipient: newPerformerId, message: `You have been newly assigned a booking for ${booking.client_name}. Please review and accept/decline.`, booking_id: booking.id, type: 'booking_update' });
+        
+        showPhoneMessage({ for: 'Client', content: <p>🔄 <strong>Booking Update</strong><br />An administrator has reassigned your booking. <strong>{newPerformer.name}</strong> is now assigned to your event, pending their confirmation.</p> });
+        setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>🆕 <strong>New Assigned Booking!</strong><br />Admin has assigned you a booking for <strong>{booking.client_name}</strong>. Please review and accept/decline in your dashboard.</p> }), 6000);
+
     } catch (err) {
         console.error("Failed to reassign performer:", err);
         setBookings(originalBookings);
         setError("Could not reassign performer.");
+    }
+  };
+  
+  const handleReferralFeePaid = async (bookingId: string, feeAmount: number, receiptFile: File) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (!booking) return;
+
+    // Simulate upload and get path for demo
+    const receiptPath = `referral-receipts/receipt-${bookingId.slice(0, 8)}-${receiptFile.name}`;
+
+    // Optimistic update
+    const originalBookings = bookings;
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, referral_fee_paid: true, referral_fee_amount: feeAmount, referral_fee_receipt_path: receiptPath } : b));
+    
+    try {
+        const { error } = await api.updateReferralFeeStatus(bookingId, feeAmount, receiptPath);
+        if (error) throw error;
+        
+        addCommunication({
+            sender: booking.performer?.name || 'Performer',
+            recipient: 'admin',
+            message: `${booking.performer?.name} has submitted their referral fee payment for the booking with ${booking.client_name}.`,
+            booking_id: bookingId,
+            type: 'admin_message'
+        });
+    } catch(err) {
+        console.error("Failed to update referral fee status:", err);
+        setBookings(originalBookings); // Revert
+        setError("Could not submit referral fee payment. Please try again.");
     }
   };
 
@@ -667,7 +710,7 @@ const App: React.FC = () => {
         const currentPerformer = performers.find(p => p.id === currentPerformerId);
         const performerBookings = bookings.filter(b => b.performer_id === currentPerformerId);
         const performerCommunications = communications.filter(c => c.recipient === currentPerformerId);
-        return currentPerformer ? <PerformerDashboard performer={currentPerformer} bookings={performerBookings} communications={performerCommunications} onToggleStatus={(status) => handlePerformerStatusChange(currentPerformer.id, status)} onViewDoNotServe={handleViewDoNotServe} onBookingDecision={handlePerformerBookingDecision} /> : <p className="text-center text-gray-400">Select a performer to view their dashboard.</p>;
+        return currentPerformer ? <PerformerDashboard performer={currentPerformer} bookings={performerBookings} communications={performerCommunications} onToggleStatus={(status) => handlePerformerStatusChange(currentPerformer.id, status)} onViewDoNotServe={handleViewDoNotServe} onBookingDecision={handlePerformerBookingDecision} onReferralFeePaid={handleReferralFeePaid} /> : <p className="text-center text-gray-400">Select a performer to view their dashboard.</p>;
       case 'do_not_serve':
          const performerIdForDns = (userProfile?.role === 'performer') ? userProfile.performer_id : currentPerformerIdForAdmin;
         const performerSubmitting = performers.find(p => p.id === performerIdForDns);

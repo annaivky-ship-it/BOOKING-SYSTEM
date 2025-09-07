@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Performer, PerformerStatus, Booking, Communication } from '../types';
-import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle } from 'lucide-react';
+import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle, DollarSign } from 'lucide-react';
+import { calculateBookingCost } from '../utils/bookingUtils';
+import ReferralFeeModal from './ReferralFeeModal';
 
 interface PerformerDashboardProps {
   performer: Performer;
@@ -9,6 +11,7 @@ interface PerformerDashboardProps {
   onToggleStatus: (status: PerformerStatus) => Promise<void>;
   onViewDoNotServe: () => void;
   onBookingDecision: (bookingId: string, decision: 'accepted' | 'declined', eta?: number) => Promise<void>;
+  onReferralFeePaid: (bookingId: string, feeAmount: number, receiptFile: File) => Promise<void>;
 }
 
 const statusConfig: Record<PerformerStatus, { color: string; label: string; icon: React.ReactNode; bgColor: string; }> = {
@@ -92,9 +95,10 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onDecision, etaValue
 };
 
 
-const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, bookings, communications, onToggleStatus, onViewDoNotServe, onBookingDecision }) => {
+const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, bookings, communications, onToggleStatus, onViewDoNotServe, onBookingDecision, onReferralFeePaid }) => {
   const [etas, setEtas] = useState<Record<string, string>>({});
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [referralModalBooking, setReferralModalBooking] = useState<Booking | null>(null);
 
   const handleEtaChange = (bookingId: string, value: string) => {
     setEtas(prev => ({ ...prev, [bookingId]: value }));
@@ -119,6 +123,17 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
   const pendingBookings = bookings.filter(b => b.status !== 'confirmed' && b.status !== 'rejected');
 
   return (
+    <>
+    {referralModalBooking && (
+        <ReferralFeeModal
+            booking={referralModalBooking}
+            onClose={() => setReferralModalBooking(null)}
+            onSubmit={async (bookingId, feeAmount, file) => {
+                await onReferralFeePaid(bookingId, feeAmount, file);
+                setReferralModalBooking(null);
+            }}
+        />
+    )}
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
@@ -188,7 +203,49 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
               <h3 className="text-lg font-semibold text-green-400 mb-3">Confirmed Bookings ({confirmedBookings.length})</h3>
               {confirmedBookings.length > 0 ? (
                   <div className="space-y-4">
-                     {confirmedBookings.map(booking => <BookingCard key={booking.id} booking={booking} onDecision={onBookingDecision} etaValue={''} onEtaChange={() => {}} />)}
+                     {confirmedBookings.map(booking => {
+                        const { totalCost, referralFee } = calculateBookingCost(booking.duration_hours, booking.services_requested, 1);
+                        return (
+                           <div key={booking.id} className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50">
+                              <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
+                                  <div>
+                                      <p className="font-bold text-lg text-white">{booking.event_type}</p>
+                                      <p className={`text-sm font-semibold capitalize ${bookingStatusClasses[booking.status]}`}>{booking.status.replace(/_/g, ' ')}</p>
+                                  </div>
+                                  <div className="text-left sm:text-right text-sm">
+                                      <div className="flex items-center gap-2 text-zinc-300"><Calendar className="h-4 w-4 text-orange-400"/> {new Date(booking.event_date).toLocaleDateString()}</div>
+                                      <div className="flex items-center gap-2 text-zinc-300 mt-1"><Clock className="h-4 w-4 text-orange-400"/> {booking.event_time}</div>
+                                  </div>
+                              </div>
+                              <div className="mt-3 pt-3 border-t border-zinc-700 flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-400 text-sm">
+                                  <span className="flex items-center gap-2"><User className="h-4 w-4 text-orange-400" /> Client: {booking.client_name}</span>
+                                  <span className="flex items-center gap-2"><Users className="h-4 w-4 text-orange-400" /> Guests: {booking.number_of_guests}</span>
+                              </div>
+                              <div className="mt-4 pt-4 border-t border-zinc-700/50">
+                                  <h4 className="text-sm font-semibold text-zinc-200 mb-2 flex items-center gap-2"><DollarSign size={16}/> Financials</h4>
+                                  <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-zinc-400">Total Booking Value:</span>
+                                        <span className="font-bold text-white">${totalCost.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-zinc-400">Referral Fee Due:</span>
+                                        <span className="font-bold text-orange-400">${referralFee.toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-4 text-right">
+                                      {booking.referral_fee_paid ? (
+                                        <span className="text-xs bg-green-500/20 text-green-300 font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5 float-right"><Check size={14}/> Fee Paid</span>
+                                      ) : (
+                                        <button onClick={() => setReferralModalBooking(booking)} className="btn-primary !py-1.5 !px-4 !text-xs !font-bold flex items-center gap-2 float-right">
+                                            Pay Referral Fee
+                                        </button>
+                                      )}
+                                  </div>
+                              </div>
+                           </div>
+                        );
+                     })}
                   </div>
               ) : (
                   <p className="text-zinc-400 text-sm">You have no confirmed bookings yet.</p>
@@ -201,6 +258,7 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
          )}
       </div>
     </div>
+    </>
   );
 };
 

@@ -1,4 +1,5 @@
 
+
 export type PerformerStatus = 'available' | 'busy' | 'offline';
 export type Role = 'user' | 'performer' | 'admin';
 
@@ -62,6 +63,9 @@ export interface Booking {
         id: number;
         name: string;
     }
+    referral_fee_amount?: number | null;
+    referral_fee_paid?: boolean;
+    referral_fee_receipt_path?: string | null;
 }
 
 export interface DoNotServeEntry {
