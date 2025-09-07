@@ -15,6 +15,7 @@ import TermsOfService from './components/TermsOfService';
 import PresentationVideo from './components/PresentationVideo';
 import UserSettings from './components/UserSettings';
 import Auth from './components/Auth';
+import ServicesPage from './components/ServicesPage';
 import { api } from './services/api';
 import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PhoneMessage, Profile } from './types';
 import { allServices } from './data/mockData';
@@ -31,7 +32,7 @@ interface NotificationSettings {
 
 const App: React.FC = () => {
   const [ageVerified, setAgeVerified] = useState(false);
-  const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth'>('available_now');
+  const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth' | 'services_page'>('available_now');
   const [bookingOrigin, setBookingOrigin] = useState<GalleryView>('available_now');
   const [viewedPerformer, setViewedPerformer] = useState<Performer | null>(null);
   const [selectedForBooking, setSelectedForBooking] = useState<Performer[]>([]);
@@ -136,6 +137,11 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
     setShowPresentation(true);
   }
+
+  const handleShowServicesPage = () => {
+    window.scrollTo(0, 0);
+    setView('services_page');
+  };
 
 
   const addCommunication = useCallback(async (commData: Omit<Communication, 'id' | 'created_at' | 'read'>) => {
@@ -637,6 +643,8 @@ const App: React.FC = () => {
                   onSettingsChange={handleNotificationSettingsChange} 
                   onBack={handleReturnToGallery} 
                 />
+      case 'services_page':
+        return <ServicesPage onBack={handleReturnToGallery} />;
       case 'admin_dashboard':
          if (userProfile?.role !== 'admin') return <p>Access Denied</p>;
         return <AdminDashboard 
@@ -785,7 +793,7 @@ const App: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 py-8 md:py-12">
         {renderContent()}
       </main>
-      <Footer onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTermsOfService={handleShowTermsOfService} />
+      <Footer onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTermsOfService={handleShowTermsOfService} onShowServicesPage={handleShowServicesPage} />
       {phoneMessage && <DemoPhone message={phoneMessage} onClose={() => setPhoneMessage(null)} />}
       {showPrivacyPolicy && <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />}
       {showTermsOfService && <TermsOfService onClose={() => setShowTermsOfService(false)} />}
