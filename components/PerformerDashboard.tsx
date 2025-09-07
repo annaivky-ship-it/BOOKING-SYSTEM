@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Performer, PerformerStatus, Booking, Communication } from '../types';
-import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle, DollarSign } from 'lucide-react';
+import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle, DollarSign, CalendarPlus } from 'lucide-react';
 import { calculateBookingCost } from '../utils/bookingUtils';
 import ReferralFeeModal from './ReferralFeeModal';
 
@@ -28,6 +28,40 @@ const bookingStatusClasses: Record<Booking['status'], string> = {
   pending_performer_acceptance: 'text-purple-400',
   rejected: 'text-red-400'
 }
+
+const generateGoogleCalendarLink = (booking: Booking): string => {
+    const {
+        event_type,
+        client_name,
+        event_date,
+        event_time,
+        duration_hours,
+        event_address,
+        client_phone,
+        number_of_guests,
+        client_message,
+    } = booking;
+
+    const startTime = new Date(`${event_date}T${event_time}`);
+    if (isNaN(startTime.getTime())) {
+        console.error("Invalid date for booking:", booking.id);
+        return '#';
+    }
+
+    const endTime = new Date(startTime.getTime() + duration_hours * 60 * 60 * 1000);
+
+    const toGoogleFormat = (date: Date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
+
+    const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: `Flavor Booking: ${event_type} w/ ${client_name}`,
+        dates: `${toGoogleFormat(startTime)}/${toGoogleFormat(endTime)}`,
+        details: `Booking Details:\n\nClient: ${client_name}\nPhone: ${client_phone}\nAddress: ${event_address}\nGuests: ${number_of_guests}\n\nNotes From Client:\n${client_message || 'N/A'}\n\n---\nBooked via Flavor Entertainers`,
+        location: event_address,
+    });
+
+    return `https://www.google.com/calendar/render?${params.toString()}`;
+};
 
 interface BookingCardProps {
   booking: Booking;
@@ -233,16 +267,26 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
                                         <span className="font-bold text-orange-400">${referralFee.toFixed(2)}</span>
                                     </div>
                                   </div>
-                                  <div className="mt-4 text-right">
+                              </div>
+                               <div className="mt-4 pt-4 border-t border-zinc-700/50 flex justify-between items-center">
+                                    <a
+                                        href={generateGoogleCalendarLink(booking)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold py-1.5 px-3 rounded-md flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                                    >
+                                        <CalendarPlus size={14} /> Add to Calendar
+                                    </a>
+                                   <div>
                                       {booking.referral_fee_paid ? (
-                                        <span className="text-xs bg-green-500/20 text-green-300 font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5 float-right"><Check size={14}/> Fee Paid</span>
+                                        <span className="text-xs bg-green-500/20 text-green-300 font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5"><Check size={14}/> Fee Paid</span>
                                       ) : (
-                                        <button onClick={() => setReferralModalBooking(booking)} className="btn-primary !py-1.5 !px-4 !text-xs !font-bold flex items-center gap-2 float-right">
+                                        <button onClick={() => setReferralModalBooking(booking)} className="btn-primary !py-1.5 !px-4 !text-xs !font-bold flex items-center gap-2">
                                             Pay Referral Fee
                                         </button>
                                       )}
-                                  </div>
-                              </div>
+                                   </div>
+                               </div>
                            </div>
                         );
                      })}
