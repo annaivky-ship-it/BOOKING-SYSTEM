@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import type { PhoneMessage } from '../types';
 import { Wifi, BatteryFull, X } from 'lucide-react';
@@ -19,7 +20,7 @@ const DemoPhone: React.FC<DemoPhoneProps> = ({ message, onClose }) => {
   const handleClose = () => {
     setIsVisible(false);
     // Allow animation to finish before calling parent onClose
-    setTimeout(onClose, 400);
+    window.setTimeout(onClose, 400);
   };
 
   if (!message) {

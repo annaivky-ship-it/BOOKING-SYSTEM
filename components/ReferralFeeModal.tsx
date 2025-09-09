@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Booking } from '../types';
 import { LoaderCircle, CheckCircle, Copy, X, UploadCloud, Building2, DollarSign } from 'lucide-react';
@@ -67,7 +68,7 @@ const ReferralFeeModal: React.FC<ReferralFeeModalProps> = ({ booking, onClose, o
   const copyToClipboard = (text: string, key: string) => {
       navigator.clipboard.writeText(text);
       setCopiedStates(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
+      window.setTimeout(() => {
           setCopiedStates(prev => ({ ...prev, [key]: false }));
       }, 2000);
   };

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Eye, PlusCircle, CheckCircle } from 'lucide-react';
 import type { Performer } from '../types';
@@ -8,6 +9,7 @@ interface PerformerCardProps {
   onViewProfile: (performer: Performer) => void;
   onToggleSelection: (performer: Performer) => void;
   isSelected: boolean;
+  tourId?: string;
 }
 
 const statusClasses = {
@@ -16,7 +18,7 @@ const statusClasses = {
   offline: 'bg-zinc-500/80 border-zinc-400 text-zinc-50',
 };
 
-const PerformerCard: React.FC<PerformerCardProps> = ({ performer, onViewProfile, onToggleSelection, isSelected }) => {
+const PerformerCard: React.FC<PerformerCardProps> = ({ performer, onViewProfile, onToggleSelection, isSelected, tourId }) => {
   const cardStyle = {
     '--glow-color': isSelected ? 'rgba(249, 115, 22, 0.5)' : 'rgba(249, 115, 22, 0.3)',
     '--glow-opacity-hover': isSelected ? '1' : '1',
@@ -27,6 +29,7 @@ const PerformerCard: React.FC<PerformerCardProps> = ({ performer, onViewProfile,
     <div
       style={cardStyle}
       className={`relative bg-zinc-900 rounded-xl overflow-hidden group transition-all duration-300 ease-in-out border border-zinc-800 flex flex-col`}
+      data-tour-id={tourId}
     >
       <div 
         className={`absolute -inset-1 rounded-xl bg-[var(--glow-color)] blur-lg transition-opacity duration-300 opacity-[var(--glow-opacity-base)] group-hover:opacity-[var(--glow-opacity-hover)] -z-10`}

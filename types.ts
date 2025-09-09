@@ -1,5 +1,3 @@
-
-
 export type PerformerStatus = 'available' | 'busy' | 'offline';
 export type Role = 'user' | 'performer' | 'admin';
 
@@ -109,4 +107,12 @@ export interface Profile {
   id: string; // Supabase user UUID
   role: Role;
   performer_id?: number | null; // Link to the performer entry if role is 'performer'
+}
+
+export interface WalkthroughStep {
+  elementSelector: string;
+  title: string;
+  content: string;
+  before?: () => void | Promise<void>;
+  position?: 'top' | 'bottom' | 'left' | 'right';
 }

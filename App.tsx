@@ -1,11 +1,14 @@
+
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Briefcase, ChevronDown, ShoppingCart, Radio, LoaderCircle, CalendarCheck, Clock, Users, Settings } from 'lucide-react';
+import { Briefcase, ChevronDown, ShoppingCart, Radio, LoaderCircle, CalendarCheck, Clock, Users, Settings, Calendar } from 'lucide-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import PerformerCard from './components/EntertainerCard';
 import PerformerProfile from './components/EntertainerProfile';
 import AgeGate from './components/AgeGate';
-import BookingProcess, { BookingFormState } from './components/BookingProcess';
+// FIX: Use type-only import for BookingFormState
+import BookingProcess, { type BookingFormState } from './components/BookingProcess';
 import PerformerDashboard from './components/PerformerDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import DoNotServe from './components/DoNotServe';
@@ -16,14 +19,19 @@ import PresentationVideo from './components/PresentationVideo';
 import UserSettings from './components/UserSettings';
 import Auth from './components/Auth';
 import ServicesPage from './components/ServicesPage';
+import CalendarView from './components/CalendarView';
+import InteractiveWalkthrough from './components/InteractiveWalkthrough';
 import { api } from './services/api';
-import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PhoneMessage, Profile } from './types';
+import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PhoneMessage, Profile, WalkthroughStep } from './types';
 import { allServices } from './data/mockData';
 import { PAY_ID_EMAIL } from './constants';
 import { calculateBookingCost } from './utils/bookingUtils';
 import type { Session } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
 
 type GalleryView = 'available_now' | 'future_bookings';
+// FIX: Added 'calendar_view' to the main view state type to align with its usage in the component.
+type ViewState = GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth' | 'services_page' | 'calendar_view';
+
 
 interface NotificationSettings {
     bookingUpdates: boolean;
@@ -32,7 +40,7 @@ interface NotificationSettings {
 
 const App: React.FC = () => {
   const [ageVerified, setAgeVerified] = useState(false);
-  const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth' | 'services_page'>('available_now');
+  const [view, setView] = useState<ViewState>('available_now');
   const [bookingOrigin, setBookingOrigin] = useState<GalleryView>('available_now');
   const [viewedPerformer, setViewedPerformer] = useState<Performer | null>(null);
   const [selectedForBooking, setSelectedForBooking] = useState<Performer[]>([]);
@@ -57,6 +65,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [walkthrough, setWalkthrough] = useState({ isActive: false, step: 0 });
 
   // Auth effect
   useEffect(() => {
@@ -118,7 +127,7 @@ const App: React.FC = () => {
 
   const showPhoneMessage = useCallback((msg: PhoneMessage) => {
     setPhoneMessage(msg);
-    setTimeout(() => {
+    window.setTimeout(() => {
       setPhoneMessage(null);
     }, 7000); // Message disappears after 7 seconds
   }, []);
@@ -295,8 +304,8 @@ const App: React.FC = () => {
         showPhoneMessage({ for: 'Client', content: <p>✅ <strong>Booking Confirmed!</strong><br/>Your event with <strong>{booking.performer?.name}</strong> is locked in. See you on {new Date(booking.event_date).toLocaleDateString()}!<br/><br/><span className="text-xs">Final balance of <strong>${finalBalance.toFixed(2)}</strong> due in cash on arrival.</span></p> });
         addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Confirmed! Your event with ${booking.performer?.name} is locked in. Final balance of $${finalBalance.toFixed(2)} due in cash on arrival. See you on ${new Date(booking.event_date).toLocaleDateString()}!`, booking_id: bookingId, type: 'booking_confirmation' });
         
-        setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>💰 <strong>DEPOSIT PAID!</strong><br />Your booking is confirmed:<br />👤 Client: <strong>{booking.client_name}</strong><br />📞 Phone: {booking.client_phone}<br />📍 Address: {booking.event_address}<br />📅 When: {new Date(booking.event_date).toLocaleDateString()}, {booking.event_time}<br />👥 Guests: {booking.number_of_guests}<br />{booking.client_message && <><br/>📝 <strong>Note:</strong> "{booking.client_message}"</>}<br/><br/>She's coming in hot 🔥 Get ready!</p>}), 6000);
-        setTimeout(() => showPhoneMessage({ for: 'Admin', content: <p>✅ <strong>DEPOSIT CONFIRMED</strong><br/>Booking locked in:<br/>👤 Client: <strong>{booking.client_name}</strong><br/>🍑 Performer: <strong>{booking.performer?.name}</strong><br/>📅 When: {new Date(booking.event_date).toLocaleDateString()}, {booking.event_time}<br/><br/>Booking ID: #{booking.id.slice(0, 8)}...</p> }), 12000);
+        window.setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>💰 <strong>DEPOSIT PAID!</strong><br />Your booking is confirmed:<br />👤 Client: <strong>{booking.client_name}</strong><br />📞 Phone: {booking.client_phone}<br />📍 Address: {booking.event_address}<br />📅 When: {new Date(booking.event_date).toLocaleDateString()}, {booking.event_time}<br />👥 Guests: {booking.number_of_guests}<br />{booking.client_message && <><br/>📝 <strong>Note:</strong> "{booking.client_message}"</>}<br/><br/>She's coming in hot 🔥 Get ready!</p>}), 6000);
+        window.setTimeout(() => showPhoneMessage({ for: 'Admin', content: <p>✅ <strong>DEPOSIT CONFIRMED</strong><br/>Booking locked in:<br/>👤 Client: <strong>{booking.client_name}</strong><br/>🍑 Performer: <strong>{booking.performer?.name}</strong><br/>📅 When: {new Date(booking.event_date).toLocaleDateString()}, {booking.event_time}<br/><br/>Booking ID: #{booking.id.slice(0, 8)}...</p> }), 12000);
       }
 
       if (status === 'confirmed') {
@@ -446,7 +455,7 @@ const App: React.FC = () => {
         addCommunication({ sender: 'Admin', recipient: newPerformerId, message: `You have been newly assigned a booking for ${booking.client_name}. Please review and accept/decline.`, booking_id: booking.id, type: 'booking_update' });
         
         showPhoneMessage({ for: 'Client', content: <p>🔄 <strong>Booking Update</strong><br />An administrator has reassigned your booking. <strong>{newPerformer.name}</strong> is now assigned to your event, pending their confirmation.</p> });
-        setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>🆕 <strong>New Assigned Booking!</strong><br />Admin has assigned you a booking for <strong>{booking.client_name}</strong>. Please review and accept/decline in your dashboard.</p> }), 6000);
+        window.setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>🆕 <strong>New Assigned Booking!</strong><br />Admin has assigned you a booking for <strong>{booking.client_name}</strong>. Please review and accept/decline in your dashboard.</p> }), 6000);
 
     } catch (err) {
         console.error("Failed to reassign performer:", err);
@@ -497,7 +506,7 @@ const App: React.FC = () => {
 
         showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Request Sent!</strong><br />We've sent your request to <strong>{newBookings!.map(b => b.performer?.name).join(' & ')}</strong>. We'll notify you as soon as they respond!</p> });
 
-        setTimeout(() => {
+        window.setTimeout(() => {
             const { totalCost, depositAmount } = calculateBookingCost(firstBooking.duration_hours, firstBooking.services_requested, newBookings!.length);
             showPhoneMessage({
                 for: 'Performer',
@@ -538,7 +547,7 @@ const App: React.FC = () => {
   const handleViewProfile = (performer: Performer) => {
     window.scrollTo(0, 0);
     if (view === 'available_now' || view === 'future_bookings') {
-        setBookingOrigin(view);
+        setBookingOrigin(view as GalleryView);
     }
     setViewedPerformer(performer);
     setView('profile');
@@ -596,7 +605,8 @@ const App: React.FC = () => {
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
-    if (query.trim() !== '' && !['available_now', 'future_bookings'].includes(view)) {
+    const isGalleryView = view === 'available_now' || view === 'future_bookings';
+    if (query.trim() !== '' && !isGalleryView) {
         setView('future_bookings');
         // Clear other filters for a clean search experience
         setCategoryFilter('');
@@ -630,6 +640,93 @@ const App: React.FC = () => {
        return categoryMatch && availabilityMatch && searchMatch;
     });
   }, [performers, categoryFilter, availabilityFilter, view, searchQuery]);
+
+    // --- Interactive Walkthrough Logic ---
+    const tourSteps: WalkthroughStep[] = [
+        { elementSelector: '[data-tour-id="gallery-tabs"]', title: "Welcome! The Client Gallery", content: "This is what your clients see: a clean, professional gallery. Let's walk through a booking from their perspective.", position: 'bottom' },
+        { elementSelector: '[data-tour-id="performer-card-5"]', title: "Selecting Performers", content: "Clients can select one or multiple performers for their event. We'll select April for this demo.", before: () => {
+            const april = performers.find(p => p.id === 5);
+            if (april) handleTogglePerformerSelection(april);
+        }, position: 'bottom' },
+        { elementSelector: '[data-tour-id="book-button"]', title: "Secure Booking Form", content: "Once selected, they proceed to our multi-step booking form which captures all necessary details, including ID for new clients.", position: 'bottom' },
+        { elementSelector: '[data-tour-id="nav-admin-dashboard"]', title: "The Admin Dashboard", content: "Now, let's switch to your view. The Admin Dashboard is your command center for the entire business.", before: async () => {
+            await api.resetDemoData(); // Reset data for a clean tour
+            await fetchData();
+            setView('admin_dashboard');
+            setUserProfile({ id: 'admin-uuid', role: 'admin' });
+        }, position: 'bottom' },
+        { elementSelector: '[data-tour-id="admin-stats"]', title: "Business At a Glance", content: "Key metrics give you a real-time overview of total bookings, confirmed events, and critical pending actions.", position: 'bottom' },
+        { elementSelector: '[data-tour-id="dns-approve-dns-2"]', title: "Proactive Safety: DNS Vetting", content: "This is our core safety feature. A 'Do Not Serve' submission from a performer lands here. Approving it protects your talent.", before: () => {
+            document.querySelector('[data-tour-id="admin-dns-pending"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, position: 'top' },
+        { elementSelector: '[data-tour-id="admin-booking-management"]', title: "Automated Booking Pipeline", content: "All bookings flow through an automated pipeline. Let's find one that a performer has accepted and is now waiting for your review.", before: async () => {
+            await handleUpdateDoNotServeStatus('dns-2', 'approved');
+            document.querySelector('[data-tour-id="admin-booking-management"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, position: 'bottom' },
+        { elementSelector: '[data-tour-id="admin-approve-vetting-9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e"]', title: "Step 1: Admin Vetting", content: "You review the client's details. With one click, you approve the booking to proceed. The system automatically notifies the client to pay their deposit.", before: async () => {
+            // Simulate performer accepting
+            await api.updateBookingStatus('9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e', 'pending_vetting');
+            await fetchData();
+        }, position: 'bottom' },
+        { elementSelector: '[data-tour-id="admin-confirm-deposit-9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e"]', title: "Step 2: Deposit Confirmation", content: "Once the client pays, you verify it here. This click locks in the booking and sends detailed confirmations to both client and performer.", before: async () => {
+            await handleUpdateBookingStatus('9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e', 'pending_deposit_confirmation');
+        }, position: 'top' },
+        { elementSelector: '[data-tour-id="admin-confirmed-booking-9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e"]', title: "Booking Confirmed!", content: "The booking is now confirmed and all parties are notified. The entire process is automated, secure, and tracked.", before: async () => {
+            await handleUpdateBookingStatus('9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e', 'confirmed');
+        }, position: 'top' },
+        { elementSelector: '[data-tour-id="reassign-booking-a1b2c3d4-e5f6-7890-1234-567890abcdef"]', title: "Powerful Exception Handling", content: "Need to make a change? You can instantly reassign a booking to another performer. The system handles all notifications automatically.", position: 'top' },
+        { elementSelector: '[data-tour-id="nav-performer-view"]', title: "The Performer's View", content: "Now, let's see what your talent sees. You can switch to any performer's view without needing their password for support or oversight.", before: () => {
+            setView('performer_dashboard');
+            setCurrentPerformerIdForAdmin(1); // Scarlett
+        }, position: 'bottom' },
+        { elementSelector: '[data-tour-id="pay-referral-fee-bfa3e8a7-58d6-44b1-8798-294956e105b6"]', title: "Closing the Financial Loop", content: "After an event, the system tracks referral fees. Performers are prompted to pay, completing the automated financial cycle.", before: () => {
+            setView('performer_dashboard');
+            setCurrentPerformerIdForAdmin(1); // Scarlett has a confirmed booking
+            document.querySelector('[data-tour-id="pay-referral-fee-bfa3e8a7-58d6-44b1-8798-294956e105b6"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, position: 'top' },
+        { elementSelector: '[data-tour-id="performer-availability"]', title: "Managing Availability", content: "Performers can instantly update their availability, which is reflected on the client-facing gallery in real-time.", position: 'bottom' },
+        { elementSelector: '[data-tour-id="header-logo"]', title: "End-to-End Automation", content: "From client request to final payment, this platform reduces admin time, enhances safety, and provides a premium experience. This concludes our tour!", before: async () => {
+             await api.resetDemoData();
+             await fetchData();
+             setView('available_now');
+             setUserProfile(null);
+        }, position: 'bottom' }
+    ];
+
+    const startWalkthrough = () => setWalkthrough({ isActive: true, step: 0 });
+    const endWalkthrough = async () => {
+      setWalkthrough({ isActive: false, step: 0 });
+      // Reset state after tour ends for a clean slate
+      await api.resetDemoData();
+      await fetchData();
+      setView('available_now');
+      setUserProfile(null);
+      setSelectedForBooking([]);
+    };
+    
+    const handleNextStep = async () => {
+        const nextStepIndex = walkthrough.step + 1;
+        if (nextStepIndex < tourSteps.length) {
+            const nextStep = tourSteps[nextStepIndex];
+            if (nextStep.before) {
+                await nextStep.before();
+            }
+            setWalkthrough(prev => ({ ...prev, step: nextStepIndex }));
+        } else {
+            endWalkthrough();
+        }
+    };
+    const handlePrevStep = async () => {
+        const prevStepIndex = walkthrough.step - 1;
+        if (prevStepIndex >= 0) {
+             const prevStep = tourSteps[prevStepIndex];
+            if (prevStep.before) {
+                await prevStep.before();
+            }
+            setWalkthrough(prev => ({ ...prev, step: prevStepIndex }));
+        }
+    };
+
 
   if (isAuthLoading) {
      return (
@@ -689,7 +786,7 @@ const App: React.FC = () => {
       case 'services_page':
         return <ServicesPage onBack={handleReturnToGallery} />;
       case 'admin_dashboard':
-         if (userProfile?.role !== 'admin') return <p>Access Denied</p>;
+         if (userProfile?.role !== 'admin' && !walkthrough.isActive) return <p>Access Denied</p>;
         return <AdminDashboard 
             bookings={bookings} 
             performers={performers} 
@@ -702,7 +799,7 @@ const App: React.FC = () => {
             onAdminChangePerformer={handleAdminChangePerformer}
           />;
       case 'performer_dashboard':
-        if (!['performer', 'admin'].includes(userProfile?.role || '')) return <p>Access Denied</p>;
+        if (!['performer', 'admin'].includes(userProfile?.role || '') && !walkthrough.isActive) return <p>Access Denied</p>;
         const currentPerformerId = (userProfile?.role === 'performer' && userProfile.performer_id) 
             ? userProfile.performer_id 
             : currentPerformerIdForAdmin;
@@ -722,76 +819,98 @@ const App: React.FC = () => {
                   onCreateEntry={handleCreateDoNotServeEntry}
                   addCommunication={addCommunication}
                />
+      // FIX: Combined calendar_view with gallery views to fix type error and share tab navigation.
       case 'available_now':
       case 'future_bookings':
+      case 'calendar_view':
       default:
         const isAvailableNow = view === 'available_now';
         return (
           <div className="animate-fade-in">
-             <div className="mb-8 flex justify-center border-b border-zinc-800">
+             <div className="mb-8 flex justify-center border-b border-zinc-800" data-tour-id="gallery-tabs">
                 <button 
                     onClick={() => setView('available_now')}
-                    className={`flex items-center gap-2 py-4 px-6 text-sm font-semibold transition-colors ${isAvailableNow ? 'border-b-2 border-orange-500 text-orange-400' : 'border-b-2 border-transparent text-zinc-400 hover:text-white'}`}
+                    className={`flex items-center gap-2 py-4 px-6 text-sm font-semibold transition-colors ${view === 'available_now' ? 'border-b-2 border-orange-500 text-orange-400' : 'border-b-2 border-transparent text-zinc-400 hover:text-white'}`}
                 >
                     <Clock size={16} /> Available Now
                 </button>
                 <button
                     onClick={() => setView('future_bookings')}
-                    className={`flex items-center gap-2 py-4 px-6 text-sm font-semibold transition-colors ${!isAvailableNow ? 'border-b-2 border-orange-500 text-orange-400' : 'border-b-2 border-transparent text-zinc-400 hover:text-white'}`}
+                    className={`flex items-center gap-2 py-4 px-6 text-sm font-semibold transition-colors ${view === 'future_bookings' ? 'border-b-2 border-orange-500 text-orange-400' : 'border-b-2 border-transparent text-zinc-400 hover:text-white'}`}
                 >
                     <CalendarCheck size={16} /> Book for Future
                 </button>
+                {['admin', 'performer'].includes(userProfile?.role || '') && (
+                  <button
+                      onClick={() => setView('calendar_view')}
+                      className={`flex items-center gap-2 py-4 px-6 text-sm font-semibold transition-colors ${view === 'calendar_view' ? 'border-b-2 border-orange-500 text-orange-400' : 'border-b-2 border-transparent text-zinc-400 hover:text-white'}`}
+                  >
+                      <Calendar size={16} /> Events Calendar
+                  </button>
+                )}
             </div>
-            <div className="text-center mb-12">
-              <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4 tracking-tight">
-                {isAvailableNow ? 'Available Now' : 'Schedule a Future Booking'}
-              </h1>
-              <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-                {isAvailableNow
-                    ? "These performers are online and ready for immediate bookings."
-                    : "Browse all professionals. Select one or more to begin your booking for a future date."
-                }
-              </p>
-            </div>
-            <div className={`mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl max-w-2xl mx-auto grid grid-cols-1 ${!isAvailableNow ? 'md:grid-cols-2' : ''} gap-4`}>
-              <div className="relative">
-                <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
-                <select onChange={(e) => setCategoryFilter(e.target.value)} value={categoryFilter} className="input-base input-with-icon appearance-none">
-                  <option value="">All Service Categories</option>
-                  {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
-              </div>
-              {!isAvailableNow && (
-               <div className="relative">
-                <Radio className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
-                <select onChange={(e) => setAvailabilityFilter(e.target.value as PerformerStatus | '')} value={availabilityFilter} className="input-base input-with-icon appearance-none">
-                  <option value="">All Availabilities</option>
-                  <option value="available">Available</option>
-                  <option value="busy">Busy</option>
-                  <option value="offline">Offline</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
-              </div>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {filteredPerformers.map((performer) => (
-                <PerformerCard
-                  key={performer.id}
-                  performer={performer}
-                  onViewProfile={handleViewProfile}
-                  onToggleSelection={handleTogglePerformerSelection}
-                  isSelected={selectedForBooking.some(p => p.id === performer.id)}
-                />
-              ))}
-            </div>
-             {filteredPerformers.length === 0 && !isLoading && (
-               <div className="text-center col-span-full py-12">
-                   <p className="text-zinc-500">
-                    {searchQuery ? `No performers match your search for "${searchQuery}".` : 'No performers match the current filters.'}
-                   </p>
-               </div>
+
+            {view === 'calendar_view' ? (
+              !['admin', 'performer'].includes(userProfile?.role || '') ? (
+                <p className="text-center text-xl text-zinc-400">Access Denied. This view is for performers and administrators only.</p>
+              ) : (
+                <CalendarView bookings={bookings} onBack={handleBackToDashboard} />
+              )
+            ) : (
+              <>
+                <div className="text-center mb-12">
+                  <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4 tracking-tight">
+                    {isAvailableNow ? 'Available Now' : 'Schedule a Future Booking'}
+                  </h1>
+                  <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
+                    {isAvailableNow
+                        ? "These performers are online and ready for immediate bookings."
+                        : "Browse all professionals. Select one or more to begin your booking for a future date."
+                    }
+                  </p>
+                </div>
+                <div className={`mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl max-w-2xl mx-auto grid grid-cols-1 ${!isAvailableNow ? 'md:grid-cols-2' : ''} gap-4`}>
+                  <div className="relative">
+                    <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                    <select onChange={(e) => setCategoryFilter(e.target.value)} value={categoryFilter} className="input-base input-with-icon appearance-none">
+                      <option value="">All Service Categories</option>
+                      {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
+                  </div>
+                  {!isAvailableNow && (
+                  <div className="relative">
+                    <Radio className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                    <select onChange={(e) => setAvailabilityFilter(e.target.value as PerformerStatus | '')} value={availabilityFilter} className="input-base input-with-icon appearance-none">
+                      <option value="">All Availabilities</option>
+                      <option value="available">Available</option>
+                      <option value="busy">Busy</option>
+                      <option value="offline">Offline</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
+                  </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                  {filteredPerformers.map((performer) => (
+                    <PerformerCard
+                      key={performer.id}
+                      performer={performer}
+                      onViewProfile={handleViewProfile}
+                      onToggleSelection={handleTogglePerformerSelection}
+                      isSelected={selectedForBooking.some(p => p.id === performer.id)}
+                      tourId={`performer-card-${performer.id}`}
+                    />
+                  ))}
+                </div>
+                {filteredPerformers.length === 0 && !isLoading && (
+                  <div className="text-center col-span-full py-12">
+                      <p className="text-zinc-500">
+                        {searchQuery ? `No performers match your search for "${searchQuery}".` : 'No performers match the current filters.'}
+                      </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -807,6 +926,7 @@ const App: React.FC = () => {
         communications={communications}
         onMarkRead={handleMarkCommunicationsRead}
         onShowPresentation={handleShowPresentation}
+        onStartWalkthrough={startWalkthrough}
         onViewUserSettings={handleViewUserSettings}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
@@ -826,6 +946,7 @@ const App: React.FC = () => {
              <button
               onClick={handleProceedToBooking}
               className="btn-primary flex items-center gap-2 text-sm px-4 py-2"
+              data-tour-id="book-button"
             >
               <ShoppingCart className="h-4 w-4" />
               Book ({selectedForBooking.length})
@@ -841,6 +962,14 @@ const App: React.FC = () => {
       {showPrivacyPolicy && <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />}
       {showTermsOfService && <TermsOfService onClose={() => setShowTermsOfService(false)} />}
       {showPresentation && <PresentationVideo onClose={() => setShowPresentation(false)} />}
+      <InteractiveWalkthrough 
+        isActive={walkthrough.isActive}
+        steps={tourSteps}
+        currentStepIndex={walkthrough.step}
+        onNext={handleNextStep}
+        onPrev={handlePrevStep}
+        onEnd={endWalkthrough}
+      />
     </div>
   );
 };

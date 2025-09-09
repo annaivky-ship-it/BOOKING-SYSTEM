@@ -106,7 +106,7 @@ const PresentationVideo: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { currentScene, sceneIndex } = sceneData;
 
   const startTimer = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
     intervalRef.current = window.setInterval(() => {
       setProgress(prev => {
         const newProgress = prev + (100 / TOTAL_DURATION) * 0.1;
@@ -120,7 +120,7 @@ const PresentationVideo: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const stopTimer = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
   };
 
   useEffect(() => {

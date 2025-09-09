@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Performer, Booking, BookingStatus, DoNotServeEntry, Communication } from '../types';
 import { allServices } from '../data/mockData';
@@ -183,8 +185,8 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
         );
         setIsVerifiedBooker(hasConfirmedBooking);
       };
-      const debounceTimer = setTimeout(checkVerifiedBooker, 500);
-      return () => clearTimeout(debounceTimer);
+      const debounceTimer = window.setTimeout(checkVerifiedBooker, 500);
+      return () => window.clearTimeout(debounceTimer);
     }, [form.email, form.mobile, bookings]);
 
     useEffect(() => {
@@ -365,7 +367,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     const copyToClipboard = (text: string, key: string) => {
         navigator.clipboard.writeText(text);
         setCopiedStates(prev => ({ ...prev, [key]: true }));
-        setTimeout(() => {
+        window.setTimeout(() => {
             setCopiedStates(prev => ({ ...prev, [key]: false }));
         }, 2000);
     };
@@ -525,207 +527,138 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     if (stage === 'rejected') {
         return (
             <StatusScreen icon={ShieldX} title="Booking Rejected" buttonText="Return to Gallery" onButtonClick={onBookingSubmitted} bgColor="bg-gradient-to-br from-red-900/30 to-zinc-900">
-                <p>Unfortunately, your booking application for <strong>{performers.map(p => p.name).join(', ')}</strong> has been rejected.</p>
+                <p>Unfortunately, your booking request could not be fulfilled at this time. This may be due to performer unavailability or other factors. Please try booking another performer.</p>
             </StatusScreen>
         )
     }
 
     if (stage === 'confirmed') {
-        const confirmedServices = allServices.filter(s => form.selectedServices.includes(s.id));
         const finalBalance = totalCost - depositAmount;
-
         return (
-            <div className="animate-fade-in max-w-4xl mx-auto">
-                <div className="card-base !p-8 sm:!p-10 !bg-gradient-to-br from-green-900/30 via-zinc-900 to-zinc-900 border-green-500/50">
-                    <div className="text-center">
-                        <CheckCircle className="mx-auto h-20 w-20 text-green-400 mb-6" />
-                        <h2 className="text-4xl font-bold text-white mb-4">Booking Confirmed!</h2>
-                        <p className="text-zinc-300 max-w-2xl mx-auto mb-10">
-                            Your event is locked in. We've sent a confirmation to <strong>{form.email}</strong>.
-                            Here is a summary of your booking:
-                        </p>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-x-8 gap-y-10 mb-10">
-                        {/* Left Column: Event Details */}
-                        <div className="space-y-5">
-                            <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 flex items-center gap-2"><Briefcase size={20}/> Event Details</h3>
-                            <DetailItem icon={<User />} label="Performer(s)" value={performers.map(p => p.name).join(', ')} />
-                            <DetailItem icon={<Calendar />} label="Date & Time" value={`${new Date(form.eventDate).toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${form.eventTime}`} />
-                            <DetailItem icon={<MapPin />} label="Address" value={form.eventAddress} />
-                            <DetailItem icon={<PartyPopper />} label="Event Type" value={form.eventType} />
-                            <DetailItem icon={<UsersIcon />} label="Guests" value={form.numberOfGuests} />
-                            <DetailItem icon={<Clock />} label="Duration" value={`${form.duration} hours`} />
-                        </div>
-
-                        {/* Right Column: Financials & Services */}
-                        <div className="space-y-5">
-                             <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 flex items-center gap-2"><DollarSign size={20}/> Financial Summary</h3>
-                             <DetailItem icon={<DollarSign />} label="Total Cost" value={`$${totalCost.toFixed(2)}`} />
-                             <DetailItem icon={<CreditCard />} label="Deposit Paid" value={`$${depositAmount.toFixed(2)}`} />
-                             <DetailItem icon={<Wallet />} label="Balance Due on Arrival" value={<span className="text-orange-400 text-lg">${finalBalance.toFixed(2)}</span>} />
-
-                             <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 pt-4 flex items-center gap-2"><ListChecks size={20}/> Services Requested</h3>
-                             <ul className="space-y-2 pl-5">
-                                {confirmedServices.map(service => (
-                                    <li key={service.id} className="text-white list-disc list-outside marker:text-orange-500">{service.name}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div className="text-center bg-zinc-950/50 p-6 rounded-lg border border-zinc-800">
-                         <h3 className="text-xl font-semibold text-white mb-2">What's Next?</h3>
-                         <p className="text-zinc-400">
-                            Your performer, <strong>{performers.map(p => p.name).join(', ')}</strong>, has received all the details. The final balance of <strong>${finalBalance.toFixed(2)}</strong> is due in cash upon their arrival. We'll see you on the day!
-                         </p>
-                    </div>
-
-                    <div className="text-center mt-10">
-                        <button onClick={onBookingSubmitted} className="btn-primary px-8 py-3 text-lg">
-                            Return to Gallery
-                        </button>
-                    </div>
+             <StatusScreen icon={CheckCircle} title="Booking Confirmed!" buttonText="Finish & Return to Gallery" onButtonClick={onBookingSubmitted} bgColor="bg-gradient-to-br from-green-900/30 to-zinc-900">
+                <p>Your booking is locked in! <strong>{performers.map(p=>p.name).join(', ')}</strong> will see you on <strong>{new Date(form.eventDate).toLocaleDateString()}</strong>.</p>
+                <div className="bg-green-900/40 p-4 rounded-lg border border-green-600/50 mt-6 text-sm">
+                    <h3 className="font-bold text-green-300 flex items-center justify-center gap-2"><Wallet/> Final Payment</h3>
+                    <p className="text-green-200/80 mt-2">The remaining balance of <strong>${finalBalance.toFixed(2)}</strong> is due in cash upon the performer's arrival.</p>
                 </div>
-            </div>
-        );
-    }
-
-    if (stage === 'deposit_pending') {
-        return (
-            <>
-            {isPayIdModalOpen && (
-                <PayIDSimulationModal 
-                    amount={depositAmount}
-                    onPaymentSuccess={handleSimulatedPaymentSuccess}
-                    onClose={() => setIsPayIdModalOpen(false)}
-                />
-            )}
-            <div className="animate-fade-in max-w-3xl mx-auto">
-                <div className="card-base !p-0 !bg-transparent !border-0">
-                    <div className="p-4 mb-6 text-green-200 bg-green-900/30 rounded-lg border border-green-500 text-center">
-                        <span className="font-medium">Application Approved!</span> Your initial application has been vetted and approved. Please pay the deposit to confirm the booking.
-                    </div>
-                    <div className="card-base !p-8 sm:!p-10 !bg-zinc-900/70">
-                        <ErrorDisplay message={error} />
-                        <h2 className="text-3xl font-bold text-white mb-2">Deposit Required</h2>
-                        <p className="text-zinc-300 mb-6">To confirm your booking with <strong>{performers.map(p => p.name).join(', ')}</strong>, please pay the {DEPOSIT_PERCENTAGE * 100}% deposit.</p>
-
-                        <button 
-                            onClick={() => setIsPayIdModalOpen(true)}
-                            className="w-full py-4 text-lg flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transform hover:-translate-y-0.5 mb-6"
-                            disabled={isSubmitting}
-                        >
-                           🚀 Simulate Instant PayID Payment
-                        </button>
-
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-zinc-700" /></div>
-                            <div className="relative flex justify-center"><span className="bg-zinc-900 px-2 text-zinc-500 text-sm">Or Manually Upload Receipt</span></div>
-                        </div>
-
-                        <div className="space-y-4 bg-zinc-950 p-6 rounded-lg mb-8 border border-zinc-700">
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold text-zinc-300">PayID Name:</span>
-                                <span className="font-mono">{PAY_ID_NAME}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold text-zinc-300">PayID Email:</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono">{PAY_ID_EMAIL}</span>
-                                    <button onClick={() => copyToClipboard(PAY_ID_EMAIL, 'email')} className="text-orange-400 hover:text-orange-300 transition-colors">
-                                        {copiedStates['email'] ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4"/>}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center text-orange-400 font-bold text-lg pt-4 border-t border-zinc-800">
-                                <span>Deposit Amount ({DEPOSIT_PERCENTAGE * 100}%):</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono">${depositAmount.toFixed(2)}</span>
-                                    <button onClick={() => copyToClipboard(depositAmount.toFixed(2), 'amount')} className="text-orange-400 hover:text-orange-300 transition-colors">
-                                        {copiedStates['amount'] ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4"/>}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 mb-6">
-                            <FileUploadField file={receiptFile} setFile={setReceiptFile} id="receiptUpload" label="Upload Deposit Receipt" accept="image/png, image/jpeg, application/pdf" />
-                        </div>
-
-                        <button 
-                            onClick={handleConfirmDepositPaid}
-                            disabled={!receiptFile || isSubmitting}
-                            className="btn-primary w-full py-3 text-base flex items-center justify-center gap-2"
-                        >
-                           {isSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
-                           Submit Manual Receipt
-                        </button>
-                    </div>
-                </div>
-            </div>
-            </>
+             </StatusScreen>
         )
     }
 
-    return (
-        <div className="animate-fade-in">
-            <button onClick={onBack} className="mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2">
-                <ArrowLeft className="h-5 w-5" />
-                Back
-            </button>
-            <form onSubmit={handleSubmit} className="card-base !p-0 sm:!p-0 !bg-transparent !border-0 max-w-4xl mx-auto">
-                 <div className="card-base !p-8 sm:!p-10 !bg-zinc-900/70 space-y-8">
-                    <div>
-                        <h2 className="text-3xl font-bold text-white">Booking Application For:</h2>
-                        <p className="text-orange-400 text-xl font-semibold">{performers.map(p => p.name).join(', ')}</p>
-                    </div>
 
-                    <ProgressIndicator currentStep={currentStep} />
+    if (stage === 'deposit_pending') {
+        return (
+           <div className="animate-fade-in max-w-4xl mx-auto">
+                <div className="card-base !p-8 text-center">
+                    <ShieldCheck className="mx-auto h-20 w-20 text-orange-400 mb-6" />
+                    <h2 className="text-4xl font-bold text-white mb-4">Booking Approved!</h2>
+                    <p className="text-zinc-300 max-w-xl mx-auto mb-8">Your booking application has been approved by administration. Please pay the deposit via PayID to finalize and confirm your booking.</p>
                     
-                    <ErrorDisplay message={error} />
-                    
-                    {renderStepContent()}
-                     
-                    {(currentStep === 3 || currentStep === 4) && (
-                        <div className="card-base !p-6 !bg-zinc-950/50 mt-8">
-                            <h3 className="text-xl font-semibold text-orange-400 flex items-center gap-2"><DollarSign /> Cost Estimate</h3>
-                            <div className="mt-4 space-y-2 text-zinc-300">
-                                <div className="flex justify-between items-center">
-                                    <span>Total Booking Cost:</span>
-                                    <span className="font-bold text-2xl text-white">${totalCost.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span>Deposit Due ({DEPOSIT_PERCENTAGE * 100}%):</span>
-                                    <span className="font-semibold text-xl text-orange-400">${depositAmount.toFixed(2)}</span>
-                                </div>
+                    <div className="bg-zinc-950 p-6 rounded-lg border border-zinc-700 max-w-md mx-auto space-y-4 mb-8">
+                        <div className="flex justify-between items-center">
+                            <p className="text-zinc-400">Pay To:</p>
+                            <p className="font-semibold text-white">{PAY_ID_NAME}</p>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <p className="text-zinc-400">PayID Email:</p>
+                             <div className="flex items-center gap-2">
+                                <span className="font-mono text-zinc-200">{PAY_ID_EMAIL}</span>
+                                <button onClick={() => copyToClipboard(PAY_ID_EMAIL, 'email')} className="text-orange-400 hover:text-orange-300 transition-colors">
+                                    {copiedStates['email'] ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4"/>}
+                                </button>
                             </div>
                         </div>
-                    )}
-
-
-                    <div className="mt-8 flex items-center justify-between">
-                        <button 
-                            type="button" 
-                            onClick={handlePrev} 
-                            className={`bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-                        >
-                            Back
-                        </button>
-                       {currentStep < 4 ? (
-                          <button type="button" onClick={handleNext} className="btn-primary text-lg px-8 py-3">
-                              Next
-                          </button>
-                       ) : (
-                          <button type="submit" disabled={isSubmitting} className="btn-primary text-lg py-3 px-6 flex items-center justify-center gap-3">
-                              {isSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin"/> : <Send className="h-5 w-5" />}
-                              {isSubmitting ? 'Submitting...' : 'Submit Booking Application'}
-                          </button>
-                       )}
+                        <div className="flex justify-between items-center text-orange-400 font-bold text-2xl pt-4 border-t border-zinc-800">
+                            <span>Amount Due:</span>
+                             <div className="flex items-center gap-2">
+                                <span className="font-mono">${depositAmount.toFixed(2)}</span>
+                                <button onClick={() => copyToClipboard(depositAmount.toFixed(2), 'amount')} className="text-orange-400 hover:text-orange-300 transition-colors">
+                                    {copiedStates['amount'] ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4"/>}
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                 </div>
-            </form>
+                    <ErrorDisplay message={error} />
+                    
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                       <button onClick={() => setIsPayIdModalOpen(true)} className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2">
+                            <CreditCard className="h-5 w-5"/> Simulate PayID Payment
+                        </button>
+                    </div>
+                </div>
+                 {isPayIdModalOpen && (
+                    <PayIDSimulationModal
+                        amount={depositAmount}
+                        onClose={() => setIsPayIdModalOpen(false)}
+                        onPaymentSuccess={handleSimulatedPaymentSuccess}
+                    />
+                 )}
+           </div>
+        );
+    }
+
+    // Default 'form' stage
+    return (
+        <div className="animate-fade-in max-w-4xl mx-auto">
+            <button
+                onClick={onBack}
+                className="mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2"
+            >
+                <ArrowLeft className="h-5 w-5" />
+                Back to Gallery
+            </button>
+
+            <div className="text-center mb-10">
+                <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-3">Booking Request</h1>
+                <p className="text-lg text-zinc-400">For {performers.map(p => p.name).join(' & ')}</p>
+            </div>
+            
+            <ProgressIndicator currentStep={currentStep} />
+            <ErrorDisplay message={error} />
+
+            <div className="grid lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                   <form onSubmit={handleSubmit}>
+                       {renderStepContent()}
+
+                       <div className="mt-8 flex justify-between">
+                            <button type="button" onClick={handlePrev} disabled={currentStep === 1} className="btn-secondary">
+                                Previous
+                            </button>
+                            {currentStep < 4 ? (
+                               <button type="button" onClick={handleNext} className="btn-primary">
+                                    Next
+                               </button>
+                            ) : (
+                                <button type="submit" disabled={isSubmitting || !agreedTerms} className="btn-primary w-48 flex items-center justify-center">
+                                    {isSubmitting ? <LoaderCircle className="animate-spin" /> : 'Submit Booking Request'}
+                                </button>
+                            )}
+                       </div>
+                   </form>
+                </div>
+                <div className="lg:col-span-1">
+                    <div className="sticky top-28 card-base !p-6 !bg-zinc-950/50">
+                        <h3 className="text-xl font-semibold text-orange-400 mb-4 border-b border-zinc-700 pb-3">Booking Summary</h3>
+                        <div className="space-y-4">
+                            <DetailItem icon={<UsersIcon size={16}/>} label="Performers" value={performers.map(p => p.name).join(', ')} />
+                            {form.duration && <DetailItem icon={<Clock size={16}/>} label="Duration" value={`${form.duration} hours`} />}
+                            {form.selectedServices.length > 0 && (
+                                <DetailItem icon={<Briefcase size={16}/>} label="Services" value={
+                                    <ul className="text-sm list-disc pl-5">
+                                        {form.selectedServices.map(id => <li key={id}>{allServices.find(s=>s.id===id)?.name}</li>)}
+                                    </ul>
+                                } />
+                            )}
+                             <div className="pt-4 border-t border-zinc-700/50 space-y-2">
+                               <DetailItem icon={<DollarSign size={16}/>} label="Estimated Total" value={`$${totalCost.toFixed(2)}`} />
+                               <DetailItem icon={<Wallet size={16}/>} label="Deposit Required" value={`$${depositAmount.toFixed(2)}`} />
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

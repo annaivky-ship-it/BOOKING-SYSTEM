@@ -132,6 +132,49 @@
        .input-with-icon {
         padding-left: 2.75rem;
        }
+
+      /* Interactive Walkthrough Styles */
+      .walkthrough-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 9998;
+        transition: opacity 0.3s ease-in-out;
+      }
+      .walkthrough-highlight {
+        position: absolute;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 15px 5px rgba(249, 115, 22, 0.7);
+        border-radius: 0.75rem;
+        z-index: 9999;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+      }
+      .walkthrough-popover {
+        position: absolute;
+        z-index: 10000;
+        width: 320px;
+        background-color: var(--color-bg-light);
+        color: #d4d4d8; /* zinc-300 */
+        border: 1px solid var(--color-border);
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        padding: 1.25rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .walkthrough-popover::after { /* The arrow */
+        content: "";
+        position: absolute;
+        border-width: 8px;
+        border-style: solid;
+      }
+      .walkthrough-popover.pos-bottom::after {
+        top: -16px; left: 50%; transform: translateX(-50%);
+        border-color: transparent transparent var(--color-border) transparent;
+      }
+      .walkthrough-popover.pos-top::after {
+        bottom: -16px; left: 50%; transform: translateX(-50%);
+        border-color: var(--color-border) transparent transparent transparent;
+      }
     </style>
   <script type="importmap">
 {

@@ -68,9 +68,10 @@ interface BookingCardProps {
   onDecision: (bookingId: string, decision: 'accepted' | 'declined', eta?: number) => Promise<void>;
   etaValue: string;
   onEtaChange: (bookingId: string, value: string) => void;
+  tourId?: string;
 }
 
-const BookingCard: React.FC<BookingCardProps> = ({ booking, onDecision, etaValue, onEtaChange }) => {
+const BookingCard: React.FC<BookingCardProps> = ({ booking, onDecision, etaValue, onEtaChange, tourId }) => {
   const [isLoading, setIsLoading] = useState<'accept' | 'decline' | null>(null);
 
   const handleDecision = async (decision: 'accepted' | 'declined') => {
@@ -85,7 +86,7 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, onDecision, etaValue
   };
 
   return (
-    <div className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50">
+    <div className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50" data-tour-id={tourId}>
         <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
             <div>
                 <p className="font-bold text-lg text-white">{booking.event_type}</p>
@@ -184,7 +185,7 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="card-base !p-6 lg:col-span-1">
+        <div className="card-base !p-6 lg:col-span-1" data-tour-id="performer-availability">
           <h2 className="text-2xl font-semibold text-white mb-4">Your Availability</h2>
           <div className="flex items-center gap-4">
             <p className="text-zinc-300">Current Status:</p>
@@ -227,7 +228,7 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
               <h3 className="text-lg font-semibold text-orange-400 mb-3">Pending Actions ({pendingBookings.length})</h3>
               {pendingBookings.length > 0 ? (
                   <div className="space-y-4">
-                      {pendingBookings.map(booking => <BookingCard key={booking.id} booking={booking} onDecision={onBookingDecision} etaValue={etas[booking.id] || ''} onEtaChange={handleEtaChange} />)}
+                      {pendingBookings.map(booking => <BookingCard key={booking.id} booking={booking} onDecision={onBookingDecision} etaValue={etas[booking.id] || ''} onEtaChange={handleEtaChange} tourId={`performer-pending-action-${booking.id}`} />)}
                   </div>
               ) : (
                   <p className="text-zinc-400 text-sm">No bookings require your attention.</p>
@@ -281,7 +282,11 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
                                       {booking.referral_fee_paid ? (
                                         <span className="text-xs bg-green-500/20 text-green-300 font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5"><Check size={14}/> Fee Paid</span>
                                       ) : (
-                                        <button onClick={() => setReferralModalBooking(booking)} className="btn-primary !py-1.5 !px-4 !text-xs !font-bold flex items-center gap-2">
+                                        <button 
+                                            onClick={() => setReferralModalBooking(booking)}
+                                            className="btn-primary !py-1.5 !px-4 !text-xs !font-bold flex items-center gap-2"
+                                            data-tour-id={`pay-referral-fee-${booking.id}`}
+                                        >
                                             Pay Referral Fee
                                         </button>
                                       )}

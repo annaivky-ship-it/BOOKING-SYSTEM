@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { LoaderCircle, CheckCircle, Shield, Building2, X } from 'lucide-react';
 import { PAY_ID_NAME, PAY_ID_EMAIL } from '../constants';
@@ -13,9 +14,9 @@ const PayIDSimulationModal: React.FC<PayIDSimulationModalProps> = ({ amount, onP
 
   const handlePay = () => {
     setStatus('processing');
-    setTimeout(() => {
+    window.setTimeout(() => {
       setStatus('success');
-      setTimeout(() => {
+      window.setTimeout(() => {
         onPaymentSuccess();
       }, 1500); // Show success message before closing
     }, 2000); // Simulate processing time

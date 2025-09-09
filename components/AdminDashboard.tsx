@@ -87,7 +87,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6" data-tour-id="admin-stats">
         <div className="card-base !p-6 flex items-center gap-4"><BarChart className="w-10 h-10 text-orange-500" /><div><p className="text-zinc-400 text-sm">Total Bookings</p><p className="text-3xl font-bold text-white">{totalBookings}</p></div></div>
         <div className="card-base !p-6 flex items-center gap-4"><ShieldCheck className="w-10 h-10 text-green-500" /><div><p className="text-zinc-400 text-sm">Confirmed</p><p className="text-3xl font-bold text-white">{confirmedBookings}</p></div></div>
         <div className="card-base !p-6 flex items-center gap-4"><ShieldAlert className="w-10 h-10 text-yellow-500" /><div><p className="text-zinc-400 text-sm">Pending Actions</p><p className="text-3xl font-bold text-white">{pendingDnsEntries.length + pendingBookings}</p></div></div>
@@ -95,7 +95,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
 
 
       {pendingDnsEntries.length > 0 && (
-         <div className="card-base !p-6 !border-yellow-500/50 !bg-yellow-900/20">
+         <div className="card-base !p-6 !border-yellow-500/50 !bg-yellow-900/20" data-tour-id="admin-dns-pending">
            <h2 className="text-2xl font-semibold text-white mb-4">Pending 'Do Not Serve' Submissions</h2>
            <div className="space-y-4">
               {pendingDnsEntries.map(entry => (
@@ -106,7 +106,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
                         <p className="text-sm text-zinc-300 mt-1 italic">Reason: "{entry.reason}"</p>
                     </div>
                     <div className="flex-shrink-0 flex items-center gap-2">
-                        <button onClick={() => setConfirmationState({ entry, action: 'approved' })} disabled={loadingState?.id === entry.id} className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded flex items-center gap-1 text-xs w-24 justify-center">
+                        <button data-tour-id={`dns-approve-${entry.id}`} onClick={() => setConfirmationState({ entry, action: 'approved' })} disabled={loadingState?.id === entry.id} className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded flex items-center gap-1 text-xs w-24 justify-center">
                           {loadingState?.type === 'dns-approve' && loadingState.id === entry.id ? <LoaderCircle size={14} className="animate-spin" /> : <><Check size={14}/> Approve</>}
                         </button>
                         <button onClick={() => setConfirmationState({ entry, action: 'rejected' })} disabled={loadingState?.id === entry.id} className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded flex items-center gap-1 text-xs w-24 justify-center">
@@ -182,7 +182,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       </div>
 
       {activeTab === 'management' && (
-      <div className="card-base !p-6">
+      <div className="card-base !p-6" data-tour-id="admin-booking-management">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
           <h2 className="text-2xl font-semibold text-white">All Booking Applications</h2>
           <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
           {filteredBookings.length > 0 ? filteredBookings.map(booking => {
             const isLoading = loadingState?.id === booking.id;
             return (
-            <div key={booking.id} className={`p-4 rounded-lg border ${statusClasses[booking.status]}`}>
+            <div key={booking.id} className={`p-4 rounded-lg border ${statusClasses[booking.status]}`} data-tour-id={`admin-confirmed-booking-${booking.id}`}>
               <div className="flex flex-col md:flex-row justify-between md:items-center">
                 <div>
                   <p className="font-bold text-lg text-white">{booking.event_type} for {booking.client_name}</p>
@@ -240,12 +240,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
               <div className="mt-4 pt-4 border-t border-gray-600/50 flex flex-wrap gap-4 items-center justify-between">
                 <div className="flex flex-wrap gap-2 items-center">
                     {booking.status === 'pending_vetting' && (
-                        <button onClick={() => handleAction('approve-vetting', booking.id, () => onUpdateBookingStatus(booking.id, 'deposit_pending'))} disabled={isLoading} className="text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1.5 w-32">
+                        <button data-tour-id={`admin-approve-vetting-${booking.id}`} onClick={() => handleAction('approve-vetting', booking.id, () => onUpdateBookingStatus(booking.id, 'deposit_pending'))} disabled={isLoading} className="text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1.5 w-32">
                            {isLoading && loadingState?.type === 'approve-vetting' ? <LoaderCircle size={14} className="animate-spin"/> : <><Check size={14}/> Approve Vetting</>}
                         </button>
                     )}
                     {booking.status === 'pending_deposit_confirmation' && (
-                        <button onClick={() => handleAction('confirm-deposit', booking.id, () => onUpdateBookingStatus(booking.id, 'confirmed'))} disabled={isLoading} className="text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1.5 w-32">
+                        <button data-tour-id={`admin-confirm-deposit-${booking.id}`} onClick={() => handleAction('confirm-deposit', booking.id, () => onUpdateBookingStatus(booking.id, 'confirmed'))} disabled={isLoading} className="text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1.5 w-32">
                           {isLoading && loadingState?.type === 'confirm-deposit' ? <LoaderCircle size={14} className="animate-spin"/> : <><Check size={14}/> Confirm Deposit</>}
                         </button>
                     )}
@@ -268,7 +268,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
                 </div>
                  <div className="flex flex-wrap gap-2 items-center">
                     {booking.status !== 'confirmed' && booking.status !== 'rejected' && (
-                       <div className="relative group">
+                       <div className="relative group" data-tour-id={`reassign-booking-${booking.id}`}>
                           <RefreshCcw className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                           <select 
                             value={booking.performer_id}

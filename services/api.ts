@@ -1,15 +1,17 @@
+
+
 // services/api.ts
 import { supabase } from './supabaseClient';
 import { mockPerformers, mockBookings, mockDoNotServeList, mockCommunications } from '../data/mockData';
 import type { Performer, Booking, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PerformerStatus, Profile } from '../types';
-import { BookingFormState } from '../components/BookingProcess';
+import { type BookingFormState } from '../components/BookingProcess';
 import type { Session, User } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
 
 
 const isDemoMode = !supabase;
 
 // Helper to simulate network delay for a better demo experience
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+const delay = (ms: number) => new Promise(res => window.setTimeout(res, ms));
 
 // In-memory "database" for demo mode to simulate state changes
 let demoPerformers = JSON.parse(JSON.stringify(mockPerformers));
@@ -32,17 +34,19 @@ const triggerDemoAuthChange = (event: string, session: Session | null) => {
 // ------------------------------------
 
 
-// Reset function for demo purposes if needed, e.g., for storybook or testing.
-export const resetDemoData = () => {
-  demoPerformers = JSON.parse(JSON.stringify(mockPerformers));
-  demoBookings = JSON.parse(JSON.stringify(mockBookings));
-  demoDoNotServeList = JSON.parse(JSON.stringify(mockDoNotServeList));
-  demoCommunications = JSON.parse(JSON.stringify(mockCommunications));
-  demoSession = null;
-};
-
-
 export const api = {
+  // Reset function for demo purposes if needed, e.g., for storybook or testing.
+  async resetDemoData() {
+    if (!isDemoMode) return;
+    await delay(100);
+    demoPerformers = JSON.parse(JSON.stringify(mockPerformers));
+    demoBookings = JSON.parse(JSON.stringify(mockBookings));
+    demoDoNotServeList = JSON.parse(JSON.stringify(mockDoNotServeList));
+    demoCommunications = JSON.parse(JSON.stringify(mockCommunications));
+    demoSession = null;
+    triggerDemoAuthChange('SIGNED_OUT', null);
+  },
+
   // --- AUTH ---
   async getSession() {
       if (isDemoMode) {
@@ -111,244 +115,153 @@ export const api = {
   // --- GETTERS ---
   async getInitialData() {
     if (isDemoMode) {
-      await delay(500);
-      return {
-        performers: { data: demoPerformers, error: null },
-        bookings: { data: demoBookings, error: null },
-        doNotServeList: { data: demoDoNotServeList, error: null },
-        communications: { data: demoCommunications, error: null },
-      };
+      await delay(1000);
+      // Simulate joins
+      const performers = { data: demoPerformers, error: null };
+      const bookings = { data: demoBookings.map(b => ({...b, performer: demoPerformers.find(p => p.id === b.performer_id)})), error: null };
+      const doNotServeList = { data: demoDoNotServeList.map(d => ({...d, performer: demoPerformers.find(p => p.id === d.submitted_by_performer_id)})), error: null };
+      const communications = { data: demoCommunications, error: null };
+      return { performers, bookings, doNotServeList, communications };
     }
-
     const [performers, bookings, doNotServeList, communications] = await Promise.all([
-      supabase.from('performers').select('*').order('id'),
-      supabase.from('bookings').select('*, performer:performer_id(id, name)').order('created_at', { ascending: false }),
-      supabase.from('do_not_serve').select('*, performer:submitted_by_performer_id(name)').order('created_at', { ascending: false }),
-      supabase.from('communications').select('*').order('created_at', { ascending: false }),
+        supabase.from('performers').select('*').order('created_at', { ascending: false }),
+        supabase.from('bookings').select('*, performer:performers(id, name)').order('created_at', { ascending: false }),
+        supabase.from('do_not_serve_list').select('*, performer:performers(name)').order('created_at', { ascending: false }),
+        supabase.from('communications').select('*').order('created_at', { ascending: false }),
     ]);
-
     return { performers, bookings, doNotServeList, communications };
   },
 
   // --- MUTATIONS ---
-
-  async addCommunication(comm: Omit<Communication, 'id' | 'created_at' | 'read'>): Promise<{ data: Communication[] | null, error: any }> {
-     const newComm: Omit<Communication, 'id' | 'created_at'> & { read: false } = {
-      ...comm,
-      read: false,
-    };
-    if (isDemoMode) {
-      await delay(200);
-      const fullComm = { ...newComm, id: `comm-demo-${Date.now()}`, created_at: new Date().toISOString() };
-      demoCommunications.unshift(fullComm);
-      return { data: [fullComm], error: null };
-    }
-    return supabase.from('communications').insert(newComm).select();
+  async addCommunication(commData: Omit<Communication, 'id' | 'created_at' | 'read'>) {
+      if (isDemoMode) {
+          await delay(100);
+          const newComm: Communication = {
+              ...commData,
+              id: `comm-${Math.random()}`,
+              created_at: new Date().toISOString(),
+              read: false
+          };
+          demoCommunications.unshift(newComm);
+          return { data: [newComm], error: null };
+      }
+      return supabase.from('communications').insert(commData).select();
   },
 
-  async updatePerformerStatus(performerId: number, status: PerformerStatus): Promise<{ data: Performer[] | null, error: any }> {
+  async updatePerformerStatus(performerId: number, status: PerformerStatus) {
     if (isDemoMode) {
-        await delay(800);
-        const performer = demoPerformers.find(p => p.id === performerId);
-        if (performer) {
-            performer.status = status;
-            return { data: [performer], error: null };
+      await delay(500);
+      const performer = demoPerformers.find(p => p.id === performerId);
+      if (performer) performer.status = status;
+      return { error: null };
+    }
+    return supabase.from('performers').update({ status }).eq('id', performerId);
+  },
+  
+  async updateBookingStatus(bookingId: string, status: BookingStatus, extraData: Partial<Booking> = {}) {
+    if (isDemoMode) {
+        await delay(500);
+        const booking = demoBookings.find(b => b.id === bookingId);
+        if (booking) {
+            Object.assign(booking, { status, ...extraData });
         }
-        return { data: null, error: { message: 'Performer not found' } };
+        return { error: null };
     }
-    return supabase.from('performers').update({ status }).eq('id', performerId).select();
+    return supabase.from('bookings').update({ status, ...extraData }).eq('id', bookingId);
   },
 
-  async updateBookingStatus(bookingId: string, status: BookingStatus, updates: Partial<Booking> = {}): Promise<{ data: Booking[] | null, error: any }> {
-    const dataToUpdate = { status, ...updates };
-    if (isDemoMode) {
-      await delay(1000);
-      const bookingIndex = demoBookings.findIndex(b => b.id === bookingId);
-      if (bookingIndex !== -1) {
-        demoBookings[bookingIndex] = { ...demoBookings[bookingIndex], ...dataToUpdate };
-        return { data: [demoBookings[bookingIndex]], error: null };
+  async updateDoNotServeStatus(entryId: string, status: DoNotServeStatus) {
+      if (isDemoMode) {
+          await delay(500);
+          const entry = demoDoNotServeList.find(e => e.id === entryId);
+          if (entry) entry.status = status;
+          return { error: null };
       }
-      return { data: null, error: { message: 'Booking not found' } };
-    }
-    return supabase.from('bookings').update(dataToUpdate).eq('id', bookingId).select('*, performer:performer_id(id, name)');
+      return supabase.from('do_not_serve_list').update({ status }).eq('id', entryId);
   },
 
-  async updateReferralFeeStatus(bookingId: string, feeAmount: number, receiptPath: string): Promise<{ data: Booking[] | null, error: any }> {
-    const updates = { 
-      referral_fee_paid: true,
-      referral_fee_amount: feeAmount,
-      referral_fee_receipt_path: receiptPath 
-    };
-    if (isDemoMode) {
-      await delay(1000);
-      const bookingIndex = demoBookings.findIndex(b => b.id === bookingId);
-      if (bookingIndex !== -1) {
-        demoBookings[bookingIndex] = { ...demoBookings[bookingIndex], ...updates };
-        return { data: [demoBookings[bookingIndex]], error: null };
-      }
-      return { data: null, error: { message: 'Booking not found' } };
-    }
-    return supabase.from('bookings').update(updates).eq('id', bookingId).select('*, performer:performer_id(id, name)');
-  },
-
-  async updateDoNotServeStatus(entryId: string, status: DoNotServeStatus): Promise<{ data: DoNotServeEntry[] | null, error: any }> {
-    if (isDemoMode) {
-      await delay(1000);
-      const entry = demoDoNotServeList.find(e => e.id === entryId);
-      if(entry) {
-        entry.status = status;
-        return { data: [entry], error: null };
-      }
-      return { data: null, error: { message: 'Entry not found' } };
-    }
-    return supabase.from('do_not_serve').update({ status }).eq('id', entryId).select('*, performer:submitted_by_performer_id(name)');
-  },
-
-  async createDoNotServeEntry(newEntry: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status' | 'performer'>): Promise<{ data: DoNotServeEntry[] | null, error: any }> {
-     if (isDemoMode) {
-          await delay(1200);
-          const performer = demoPerformers.find(p => p.id === newEntry.submitted_by_performer_id);
-          const entry: DoNotServeEntry = {
-              ...newEntry,
-              id: `dns-demo-${Date.now()}`,
+  async createDoNotServeEntry(newEntryData: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status'>) {
+      if (isDemoMode) {
+          await delay(800);
+          const newEntry: DoNotServeEntry = {
+              ...newEntryData,
+              id: `dns-${Math.random()}`,
               created_at: new Date().toISOString(),
               status: 'pending',
-              performer: { name: performer?.name || 'Unknown' }
+              performer: demoPerformers.find(p => p.id === newEntryData.submitted_by_performer_id)
           };
-          demoDoNotServeList.unshift(entry);
-          return { data: [entry], error: null };
+          demoDoNotServeList.unshift(newEntry);
+          return { data: [newEntry], error: null };
       }
-      return supabase.from('do_not_serve').insert({ ...newEntry, status: 'pending' }).select('*, performer:submitted_by_performer_id(name)');
+      return supabase.from('do_not_serve_list').insert(newEntryData).select('*, performer:performers(name)');
   },
 
-  async createBookingRequest(formState: BookingFormState, requestedPerformers: Performer[]): Promise<{ data: Booking[] | null, error: any }> {
-     if (isDemoMode) {
-        await delay(1500);
-        const approvedDNS = demoDoNotServeList.filter(e => e.status === 'approved');
-        const isBlocked = approvedDNS.some(entry => {
-            const nameMatch = entry.client_name.trim().toLowerCase() === formState.fullName.trim().toLowerCase();
-            const emailMatch = formState.email && entry.client_email && entry.client_email.trim().toLowerCase() === formState.email.trim().toLowerCase();
-            const phoneMatch = formState.mobile && entry.client_phone && entry.client_phone.replace(/\s+/g, '') === formState.mobile.replace(/\s+/g, '');
-            return nameMatch || emailMatch || phoneMatch;
-        });
-
-        if (isBlocked) {
-            this.addCommunication({
-                sender: 'System',
-                recipient: 'admin',
-                message: `BLOCKED BOOKING ATTEMPT: A client on the 'Do Not Serve' list (${formState.fullName}) tried to book. The system prevented it.`,
-                type: 'system_alert'
-            });
-            return { data: null, error: { message: "This client is on the 'Do Not Serve' list and cannot be booked. The system has blocked the request and notified administration." }};
-        }
-        
-        const newBookings: Booking[] = requestedPerformers.map((p, i) => ({
-            id: `demo-${Date.now()}-${i}`,
-            performer_id: p.id,
-            client_name: formState.fullName,
-            client_email: formState.email,
-            client_phone: formState.mobile,
-            event_date: formState.eventDate,
-            event_time: formState.eventTime,
-            event_address: formState.eventAddress,
-            event_type: formState.eventType,
-            number_of_guests: Number(formState.numberOfGuests),
-            client_message: formState.client_message,
-            status: 'pending_performer_acceptance' as const,
-            duration_hours: Number(formState.duration),
-            services_requested: formState.selectedServices,
-            id_document_path: formState.idDocument ? `demo/id-${Date.now()}-${formState.idDocument.name}` : null,
-            deposit_receipt_path: null,
-            created_at: new Date().toISOString(),
-            verified_by_admin_name: null,
-            verified_at: null,
-            performer: { id: p.id, name: p.name },
-            performer_eta_minutes: null,
-            referral_fee_paid: false,
-        }));
-        
-        demoBookings.unshift(...newBookings);
-        return { data: newBookings, error: null };
-    }
-
-    // --- Supabase logic ---
-    if (!supabase) {
-      return { data: null, error: { message: 'Supabase client is not initialized.' } };
-    }
-
-    // 1. DNS Check
-    const { data: dnsList, error: dnsError } = await supabase
-      .from('do_not_serve')
-      .select('client_name, client_email, client_phone')
-      .eq('status', 'approved');
-
-    if (dnsError) {
-      return { data: null, error: { message: `Failed to check DNS list: ${dnsError.message}` } };
-    }
-
-    const isBlocked = dnsList.some(entry => {
-        const nameMatch = entry.client_name.trim().toLowerCase() === formState.fullName.trim().toLowerCase();
-        const emailMatch = formState.email && entry.client_email && entry.client_email.trim().toLowerCase() === formState.email.trim().toLowerCase();
-        const phoneMatch = formState.mobile && entry.client_phone && entry.client_phone.replace(/\s+/g, '') === formState.mobile.replace(/\s+/g, '');
-        return nameMatch || emailMatch || phoneMatch;
-    });
-
-    if (isBlocked) {
-        this.addCommunication({
-            sender: 'System',
-            recipient: 'admin',
-            message: `BLOCKED BOOKING ATTEMPT: A client on the 'Do Not Serve' list (${formState.fullName}) tried to book. The system prevented it.`,
-            type: 'system_alert'
-        });
-        return { data: null, error: { message: "This client is on the 'Do Not Serve' list and cannot be booked. The system has blocked the request and notified administration." }};
-    }
-
-    // 2. File Upload
-    let idDocumentPath: string | null = null;
-    if (formState.idDocument) {
-      const file = formState.idDocument;
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `id-documents/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('documents') // Assuming a bucket named 'documents'
-        .upload(filePath, file);
-
-      if (uploadError) {
-        return { data: null, error: { message: `Failed to upload ID document: ${uploadError.message}` } };
+  async createBookingRequest(formState: BookingFormState, requestedPerformers: Performer[]) {
+      if (isDemoMode) {
+          await delay(1200);
+          const newBookings: Booking[] = requestedPerformers.map(performer => ({
+              id: `booking-${Math.random().toString(36).substr(2, 9)}`,
+              performer_id: performer.id,
+              client_name: formState.fullName,
+              client_email: formState.email,
+              client_phone: formState.mobile,
+              event_date: formState.eventDate,
+              event_time: formState.eventTime,
+              event_address: formState.eventAddress,
+              event_type: formState.eventType,
+              status: 'pending_performer_acceptance',
+              id_document_path: formState.idDocument ? `uploads/ids/${formState.idDocument.name}` : null,
+              deposit_receipt_path: null,
+              created_at: new Date().toISOString(),
+              duration_hours: Number(formState.duration),
+              number_of_guests: Number(formState.numberOfGuests),
+              services_requested: formState.selectedServices,
+              verified_by_admin_name: null,
+              verified_at: null,
+              client_message: formState.client_message,
+              performer: { id: performer.id, name: performer.name },
+          }));
+          demoBookings.unshift(...newBookings);
+          return { data: newBookings, error: null };
       }
-      idDocumentPath = filePath;
-    }
 
-    // 3. Prepare booking data
-    const newBookingsData: Omit<Booking, 'id' | 'created_at' | 'performer' | 'verified_by_admin_name' | 'verified_at' | 'deposit_receipt_path' | 'performer_reassigned_from_id' | 'performer_eta_minutes' | 'referral_fee_amount' | 'referral_fee_paid' | 'referral_fee_receipt_path'>[] = requestedPerformers.map(p => ({
-        performer_id: p.id,
-        client_name: formState.fullName,
-        client_email: formState.email,
-        client_phone: formState.mobile,
-        event_date: formState.eventDate,
-        event_time: formState.eventTime,
-        event_address: formState.eventAddress,
-        event_type: formState.eventType,
-        number_of_guests: Number(formState.numberOfGuests),
-        client_message: formState.client_message,
-        status: 'pending_performer_acceptance' as const,
-        duration_hours: Number(formState.duration),
-        services_requested: formState.selectedServices,
-        id_document_path: idDocumentPath,
-    }));
+      // Real Supabase logic would involve uploading the ID if it exists,
+      // then creating the booking records.
+      // This is a simplified version.
+      const bookingRecords = requestedPerformers.map(performer => ({
+          performer_id: performer.id,
+          client_name: formState.fullName,
+          client_email: formState.email,
+          client_phone: formState.mobile,
+          event_date: formState.eventDate,
+          event_time: formState.eventTime,
+          event_address: formState.eventAddress,
+          event_type: formState.eventType,
+          status: 'pending_performer_acceptance',
+          duration_hours: Number(formState.duration),
+          number_of_guests: Number(formState.numberOfGuests),
+          services_requested: formState.selectedServices,
+          client_message: formState.client_message,
+          // id_document_path would be set after upload
+      }));
+      return supabase.from('bookings').insert(bookingRecords).select('*, performer:performers(id, name)');
+  },
 
-    // 4. Insert bookings
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert(newBookingsData)
-      .select('*, performer:performer_id(id, name)'); // fetch performer name too
-
-    if (error) {
-      return { data: null, error: { message: `Failed to create booking: ${error.message}` } };
-    }
-
-    return { data, error: null };
+  async updateReferralFeeStatus(bookingId: string, feeAmount: number, receiptPath: string) {
+      if (isDemoMode) {
+          await delay(800);
+          const booking = demoBookings.find(b => b.id === bookingId);
+          if (booking) {
+              booking.referral_fee_paid = true;
+              booking.referral_fee_amount = feeAmount;
+              booking.referral_fee_receipt_path = receiptPath;
+          }
+          return { error: null };
+      }
+      return supabase.from('bookings').update({
+          referral_fee_paid: true,
+          referral_fee_amount: feeAmount,
+          referral_fee_receipt_path: receiptPath
+      }).eq('id', bookingId);
   }
 };

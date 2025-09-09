@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Role, Communication, Profile, Performer } from '../types';
-import { Bell, Inbox, CheckCheck, Video, Settings, Search, LogIn, LogOut, LayoutDashboard, Users, UserCog, Shield, ChevronDown } from 'lucide-react';
+import { Bell, Inbox, CheckCheck, Video, Settings, Search, LogIn, LogOut, LayoutDashboard, Users, UserCog, Shield, ChevronDown, PlayCircle } from 'lucide-react';
 import type { Session } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
   communications: Communication[];
   onMarkRead: () => void;
   onShowPresentation: () => void;
+  onStartWalkthrough: () => void;
   onViewUserSettings?: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -22,17 +23,18 @@ interface HeaderProps {
   onPerformerChangeForAdmin: (id: number | null) => void;
 }
 
-const NavButton: React.FC<{onClick: () => void, isActive: boolean, children: React.ReactNode, className?: string}> = ({ onClick, isActive, children, className = '' }) => (
+const NavButton: React.FC<{onClick: () => void, isActive: boolean, children: React.ReactNode, className?: string, tourId?: string}> = ({ onClick, isActive, children, className = '', tourId }) => (
     <button 
       onClick={onClick}
       className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-md transition-colors ${isActive ? 'bg-orange-500/20 text-orange-300' : 'text-zinc-300 hover:bg-zinc-700 hover:text-white'} ${className}`}
+      data-tour-id={tourId}
     >
       {children}
     </button>
 );
 
 
-const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile, communications, onMarkRead, onShowPresentation, onViewUserSettings, searchQuery, onSearchChange, session, onSignOut, onSignInClick, performers, currentPerformerIdForAdmin, onPerformerChangeForAdmin }) => {
+const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile, communications, onMarkRead, onShowPresentation, onStartWalkthrough, onViewUserSettings, searchQuery, onSearchChange, session, onSignOut, onSignInClick, performers, currentPerformerIdForAdmin, onPerformerChangeForAdmin }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const currentPerformerId = userProfile?.role === 'performer' ? userProfile.performer_id : (userProfile?.role === 'admin' ? currentPerformerIdForAdmin : null);
@@ -92,9 +94,9 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
       return (
         <div className="flex items-center p-1 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
            <NavButton onClick={() => onNavigate('available_now')} isActive={view.startsWith('available') || view.startsWith('future')}><Users size={16}/> Client View</NavButton>
-           <NavButton onClick={() => onNavigate('admin_dashboard')} isActive={view === 'admin_dashboard'}><Shield size={16}/> Admin Dashboard</NavButton>
+           <NavButton onClick={() => onNavigate('admin_dashboard')} isActive={view === 'admin_dashboard'} tourId="nav-admin-dashboard"><Shield size={16}/> Admin Dashboard</NavButton>
            <div className="flex items-center">
-              <NavButton onClick={() => onNavigate('performer_dashboard')} isActive={view === 'performer_dashboard'} className="!rounded-r-none !border-r-0">
+              <NavButton onClick={() => onNavigate('performer_dashboard')} isActive={view === 'performer_dashboard'} className="!rounded-r-none !border-r-0" tourId="nav-performer-view">
                 <UserCog size={16}/> Performer View
               </NavButton>
               <div className="relative">
@@ -122,7 +124,7 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
     <header className="bg-black/30 backdrop-blur-lg sticky top-0 z-50 border-b border-zinc-800">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          <a href="/" className="flex flex-col items-start cursor-pointer no-underline group">
+          <a href="/" className="flex flex-col items-start cursor-pointer no-underline group" data-tour-id="header-logo">
             <div className="flex items-center">
                 <span className="font-logo-main text-3xl tracking-wider text-white group-hover:text-orange-400 transition-colors duration-300">FLAV</span>
                 <span className="text-3xl mx-[-0.15em] relative transform group-hover:scale-110 transition-transform duration-300" style={{top: "-0.05em"}}>🍑</span>
@@ -145,6 +147,13 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
 
             {session && <div className="hidden lg:flex items-center gap-4 mr-2">{renderNavLinks()}</div>}
             
+             <button
+                onClick={onStartWalkthrough}
+                className="text-zinc-400 hover:text-white p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                title="Start Interactive Tour"
+              >
+                <PlayCircle className="h-6 w-6" />
+              </button>
              <button 
                 onClick={onShowPresentation} 
                 className="text-zinc-400 hover:text-white p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
