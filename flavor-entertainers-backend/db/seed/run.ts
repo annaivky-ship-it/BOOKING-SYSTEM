@@ -22,10 +22,13 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 })
 
 async function runSeed() {
-  console.log('🌱 Running database seed...')
+  console.log('🌱 Running database seed (production mode - no demo data)...')
 
   try {
-    const seedSql = readFileSync(join(__dirname, 'seed_data.sql'), 'utf8')
+    // Use production seed file - no demo data for production
+    const seedFile = process.env.NODE_ENV === 'production' ? 'production_seed.sql' : 'seed_data.sql'
+    const seedSql = readFileSync(join(__dirname, seedFile), 'utf8')
+    console.log(`📄 Using seed file: ${seedFile}`)
 
     // Split SQL into individual statements and execute them
     const statements = seedSql
@@ -80,19 +83,30 @@ async function runSeed() {
 
     console.log('🎉 Database seeding completed successfully!')
     console.log('')
-    console.log('📋 Seed data summary:')
-    console.log('   - 1 Admin user (admin@lustandlace.com.au)')
-    console.log('   - 5 Performers with different services and regions')
-    console.log('   - 3 Test clients')
-    console.log('   - Sample bookings in various statuses')
-    console.log('   - 1 Pre-approved client')
-    console.log('   - 1 Blacklisted entry')
-    console.log('   - Sample vetting applications')
-    console.log('   - Audit log entries')
-    console.log('')
-    console.log('🔐 Test login credentials:')
-    console.log('   Admin: admin@lustandlace.com.au / admin123')
-    console.log('   (Note: Auth users must be created manually or via API)')
+    if (process.env.NODE_ENV === 'production') {
+      console.log('📋 Production seed data summary:')
+      console.log('   - 1 Admin user profile created')
+      console.log('   - No demo data (clean production database)')
+      console.log('')
+      console.log('🔐 Admin login credentials:')
+      console.log('   Email: admin@lustandlace.com.au')
+      console.log('   Password: FlavorAdmin2024!')
+      console.log('   (Note: Admin auth user must be created manually in Supabase)')
+    } else {
+      console.log('📋 Development seed data summary:')
+      console.log('   - 1 Admin user (admin@lustandlace.com.au)')
+      console.log('   - 5 Performers with different services and regions')
+      console.log('   - 3 Test clients')
+      console.log('   - Sample bookings in various statuses')
+      console.log('   - 1 Pre-approved client')
+      console.log('   - 1 Blacklisted entry')
+      console.log('   - Sample vetting applications')
+      console.log('   - Audit log entries')
+      console.log('')
+      console.log('🔐 Test login credentials:')
+      console.log('   Admin: admin@lustandlace.com.au / admin123')
+      console.log('   (Note: Auth users must be created manually or via API)')
+    }
 
   } catch (error) {
     console.error('❌ Error running seed:', error)
