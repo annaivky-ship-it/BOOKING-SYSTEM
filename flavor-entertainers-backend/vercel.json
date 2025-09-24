@@ -5,6 +5,5 @@
       "maxDuration": 30
     }
   },
-  "buildCommand": "pnpm install && pnpm build",
-  "installCommand": "pnpm install"
+  "buildCommand": "pnpm install && pnpm build"
 }

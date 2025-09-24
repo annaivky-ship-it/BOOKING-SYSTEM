@@ -8,5 +8,22 @@ module.exports = async (req, res) => {
     await app.ready()
   }
 
-  app.server.emit('request', req, res)
+  // Handle Vercel serverless function
+  try {
+    await app.inject({
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      payload: req.body || req
+    }).then(response => {
+      res.status(response.statusCode)
+      Object.keys(response.headers).forEach(key => {
+        res.setHeader(key, response.headers[key])
+      })
+      res.end(response.payload)
+    })
+  } catch (error) {
+    console.error('Serverless function error:', error)
+    res.status(500).json({ error: 'Internal Server Error' })
+  }
 }
