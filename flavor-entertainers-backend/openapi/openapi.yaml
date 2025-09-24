@@ -1,0 +1,721 @@
+openapi: 3.0.0
+info:
+  title: Flavor Entertainers API
+  description: Production-ready backend for adult entertainment performer bookings in Western Australia
+  version: 1.0.0
+  contact:
+    name: Flavor Entertainers
+    email: contact@lustandlace.com.au
+  license:
+    name: UNLICENSED
+
+servers:
+  - url: https://api.flavor-entertainers.example
+    description: Production server
+  - url: http://localhost:8080
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "Validation Error"
+        message:
+          type: string
+          example: "Invalid request body"
+        code:
+          type: string
+          example: "VALIDATION_FAILED"
+        details:
+          type: object
+        requestId:
+          type: string
+          format: uuid
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, performer, client]
+        display_name:
+          type: string
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        performer_id:
+          type: string
+          format: uuid
+        event_date:
+          type: string
+          format: date
+        event_time:
+          type: string
+          pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
+        location:
+          type: string
+        service:
+          type: string
+          enum: [Topless Waitress, Striptease, XXX Show]
+        rate:
+          type: number
+          format: decimal
+        booking_fee:
+          type: number
+          format: decimal
+        total:
+          type: number
+          format: decimal
+        message:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, awaiting_payment, confirmed, completed, cancelled]
+        payment_link_url:
+          type: string
+          format: uri
+        balance_due:
+          type: number
+          format: decimal
+        balance_due_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Performer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        stage_name:
+          type: string
+        region:
+          type: string
+        services:
+          type: array
+          items:
+            type: string
+        available_now:
+          type: boolean
+        rate_card:
+          type: object
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        booking_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+        method:
+          type: string
+          enum: [payid, stripe, cash]
+        status:
+          type: string
+          enum: [requires_action, succeeded, failed, refunded]
+        provider_ref:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    VettingApplication:
+      type: object
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        mobile:
+          type: string
+          pattern: '^\+61[0-9]{9}$'
+        event_date:
+          type: string
+          format: date
+        event_address:
+          type: string
+        event_type:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, denied]
+        submission_time:
+          type: string
+          format: date-time
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            limit:
+              type: integer
+            offset:
+              type: integer
+            has_more:
+              type: boolean
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Bookings
+    description: Booking management endpoints
+  - name: Performers
+    description: Performer management endpoints
+  - name: Vetting
+    description: Client vetting endpoints
+  - name: Payments
+    description: Payment processing endpoints
+  - name: Admin
+    description: Administrative endpoints
+  - name: Webhooks
+    description: Webhook endpoints
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API is running
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  environment:
+                    type: string
+                    example: "production"
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Register a new user (client or performer)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - role
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                role:
+                  type: string
+                  enum: [performer, client]
+                display_name:
+                  type: string
+                phone:
+                  type: string
+                  pattern: '^\+61[0-9]{9}$'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: "bearer"
+                  expires_in:
+                    type: integer
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/magic-link:
+    post:
+      tags:
+        - Authentication
+      summary: Send magic link
+      description: Send magic link for passwordless login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Magic link sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /bookings/request:
+    post:
+      tags:
+        - Bookings
+      summary: Create booking request
+      description: Create a new booking request
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - phone
+                - event_date
+                - event_time
+                - location
+                - service
+                - rate
+              properties:
+                performer_id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  maxLength: 100
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                  pattern: '^\+61[0-9]{9}$'
+                event_date:
+                  type: string
+                  format: date
+                event_time:
+                  type: string
+                  pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
+                location:
+                  type: string
+                  maxLength: 500
+                service:
+                  type: string
+                  enum: [Topless Waitress, Striptease, XXX Show]
+                rate:
+                  type: number
+                  minimum: 0
+                message:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Booking request created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  message:
+                    type: string
+        '403':
+          description: Booking blocked (blacklisted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking details
+      description: Get details of a specific booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}/approve:
+    post:
+      tags:
+        - Bookings
+      summary: Approve booking
+      description: Approve a booking and generate payment link (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                performer_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Booking approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  payment_link_url:
+                    type: string
+                    format: uri
+                  status:
+                    type: string
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: List bookings
+      description: List bookings with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending_review, awaiting_deposit, confirmed, completed, cancelled]
+        - name: performer_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: client_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Booking'
+
+  /payments/{booking_id}/payid-receipt:
+    post:
+      tags:
+        - Payments
+      summary: Upload PayID receipt
+      description: Upload proof of PayID payment
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - receipt_file
+              properties:
+                receipt_file:
+                  type: string
+                  description: File ID of uploaded receipt
+      responses:
+        '200':
+          description: Receipt uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+
+  /payments/{payment_id}/verify:
+    post:
+      tags:
+        - Payments
+      summary: Verify payment
+      description: Admin verification of PayID payment receipt
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - verified
+              properties:
+                verified:
+                  type: boolean
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Payment verification completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  booking_id:
+                    type: string
+                  status:
+                    type: string
+
+  /payments/pending-verification:
+    get:
+      tags:
+        - Payments
+      summary: Get pending verifications
+      description: List payments awaiting admin verification
+      responses:
+        '200':
+          description: Pending payments list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending_payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  total:
+                    type: integer
+
+  /webhooks/stripe:
+    post:
+      tags:
+        - Webhooks
+      summary: Stripe webhook (fallback)
+      description: Handle Stripe webhook events (fallback payment method)
+      security: []
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+        '400':
+          description: Invalid webhook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
