@@ -25,8 +25,13 @@ module.exports = async (req, res) => {
         process.env.JWT_SECRET = require('crypto').randomBytes(64).toString('base64')
       }
 
-      // Set default values for missing environment variables
-      process.env.SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://rpldkrstlqdlolbhbylp.supabase.co'
+      // Fix malformed URLs and set correct environment variables
+      let supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://rpldkrstlqdlolbhbylp.supabase.co'
+      // Fix double https: issue
+      if (supabaseUrl.startsWith('https:https://')) {
+        supabaseUrl = supabaseUrl.replace('https:https://', 'https://')
+      }
+      process.env.SUPABASE_URL = supabaseUrl
       process.env.SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbGRrcnN0bHFkbG9sYmhieWxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0Njg4NTQsImV4cCI6MjA3MzA0NDg1NH0.0aBSYWQPAWerAmguhD7yWnkJc48aBlCQQ8RPzCWdoEU'
       process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
 
@@ -49,6 +54,13 @@ module.exports = async (req, res) => {
       process.env.UPLOAD_MAX_SIZE = process.env.UPLOAD_MAX_SIZE || '10485760'
       process.env.UPLOAD_ALLOWED_TYPES = process.env.UPLOAD_ALLOWED_TYPES || 'image/jpeg,image/png,application/pdf'
       process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'info'
+
+      // Log environment setup
+      console.log('🔧 Environment setup:')
+      console.log('- NODE_ENV:', process.env.NODE_ENV)
+      console.log('- SUPABASE_URL:', process.env.SUPABASE_URL)
+      console.log('- ADMIN_EMAIL:', process.env.ADMIN_EMAIL)
+      console.log('- BASE_URL:', process.env.BASE_URL)
 
       // Import and build the Fastify app
       const { buildApp } = require('../apps/api/dist/index.js')
