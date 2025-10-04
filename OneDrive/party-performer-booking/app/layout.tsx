@@ -18,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/dashboard/performer">Performer Dashboard</Link>
             <Link href="/dashboard/client">My Bookings</Link>
             <Link href="/dashboard/admin">Admin</Link>
+            <Link href="/login">Login</Link>
             <Link href="/legal/terms">Terms</Link>
             <Link href="/legal/privacy">Privacy</Link>
             <Link href="/legal/content-policy">Content Policy</Link>

@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-    /* Dark theme as default */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 225 71% 7%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 271.5 81% 56%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 271.5 81% 56%;
-    --radius: 0.5rem;
+    /* Dark theme matching reference site */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 90%;
+    --card: 240 6% 8%;
+    --card-foreground: 0 0% 90%;
+    --popover: 240 6% 8%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4% 15%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 240 4% 15%;
+    --muted-foreground: 0 0% 63%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 4% 15%;
+    --input: 240 4% 15%;
+    --ring: 25 95% 53%;
+    --radius: 0.75rem;
   }
 
   .light {
@@ -59,51 +59,55 @@
   }
 }
 
-/* Custom styles for Flavor Entertainers */
+/* Custom styles for Flavor Entertainers - Dark Theme */
 @layer components {
   .brand-gradient {
-    @apply bg-gradient-to-r from-purple-600 to-pink-600;
+    @apply bg-gradient-to-r from-orange-500 to-orange-600;
   }
 
   .brand-gradient-text {
-    @apply bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent;
   }
 
-  /* Dark theme specific gradients */
+  /* Dark theme radial background matching reference */
+  .dark-radial-bg {
+    background: radial-gradient(ellipse at center, #18181b 0%, #0a0a0a 70%);
+    min-height: 100vh;
+  }
+
   .dark-gradient-bg {
     background: linear-gradient(135deg,
-      hsl(222.2, 84%, 4.9%) 0%,
-      hsl(225, 71%, 7%) 25%,
-      hsl(224, 71%, 4%) 50%,
-      hsl(217.2, 32.6%, 17.5%) 100%);
+      #0a0a0a 0%,
+      #18181b 25%,
+      #27272a 50%,
+      #18181b 75%,
+      #0a0a0a 100%);
   }
 
-  .dark-gradient-surface {
-    background: linear-gradient(135deg,
-      hsl(225, 71%, 7%) 0%,
-      hsl(217.2, 32.6%, 17.5%) 50%,
-      hsl(225, 71%, 7%) 100%);
+  .dark-card-bg {
+    background: rgba(24, 24, 27, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(39, 39, 42, 0.5);
   }
 
   .dark-hero-gradient {
-    background: linear-gradient(135deg,
-      hsl(222.2, 84%, 4.9%) 0%,
-      hsl(260, 40%, 8%) 25%,
-      hsl(280, 40%, 10%) 50%,
-      hsl(222.2, 84%, 4.9%) 100%);
+    background: radial-gradient(circle at 50% 50%,
+      rgba(249, 115, 22, 0.1) 0%,
+      rgba(24, 24, 27, 0.9) 50%,
+      #0a0a0a 100%);
   }
 
   .animate-shimmer {
-    background: linear-gradient(110deg, #e2e8f0 45%, #f1f5f9 55%, #e2e8f0);
+    background: linear-gradient(110deg, #27272a 45%, #3f3f46 55%, #27272a);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
 
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/20 hover:-translate-y-1;
   }
 
-  /* Enhanced animations and effects */
+  /* Enhanced animations and effects for dark theme */
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
@@ -119,14 +123,14 @@
 
   .glass-effect {
     backdrop-filter: blur(12px);
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(24, 24, 27, 0.8);
+    border: 1px solid rgba(39, 39, 42, 0.5);
   }
 
   .card-premium {
-    @apply relative overflow-hidden border-0 bg-white/90 backdrop-blur-sm;
-    @apply hover:bg-white transition-all duration-500;
-    @apply hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-2;
+    @apply relative overflow-hidden border border-zinc-800 bg-zinc-900/90 backdrop-blur-sm;
+    @apply hover:bg-zinc-800/90 transition-all duration-500;
+    @apply hover:shadow-2xl hover:shadow-orange-500/20 hover:-translate-y-2;
   }
 
   .card-premium::before {
@@ -136,7 +140,7 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.1), transparent);
     transition: left 0.5s;
   }
 
@@ -163,20 +167,48 @@
   }
 
   .btn-premium {
-    @apply bg-gradient-to-r from-purple-600 to-pink-600;
-    @apply hover:from-purple-700 hover:to-pink-700;
-    @apply text-white shadow-lg hover:shadow-xl;
+    @apply bg-gradient-to-r from-orange-500 to-orange-600;
+    @apply hover:from-orange-600 hover:to-orange-700;
+    @apply text-white shadow-lg hover:shadow-xl hover:shadow-orange-500/25;
     @apply transition-all duration-300 transform hover:scale-105;
   }
 
-  /* Text effects */
+  /* Orange glow effect for interactive elements */
+  .orange-glow {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .orange-glow:hover {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.5);
+  }
+
+  /* Text effects with orange theme */
   .text-shimmer {
-    background: linear-gradient(90deg, #8B5CF6, #EC4899, #8B5CF6);
+    background: linear-gradient(90deg, #f97316, #fb923c, #f97316);
     background-size: 200% 100%;
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: text-shimmer 3s ease-in-out infinite;
+  }
+
+  /* Custom scrollbar for dark theme */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #f97316;
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #ea580c;
   }
 }
 

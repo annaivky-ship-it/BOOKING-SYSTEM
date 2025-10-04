@@ -1,0 +1,14 @@
+To connect to the correct Supabase project (qohyutlxwekppkrdlamp), you need to:
+
+1. Visit: https://supabase.com/dashboard/project/qohyutlxwekppkrdlamp/settings/api
+2. Copy the following values:
+   - Project URL (should be: https://qohyutlxwekppkrdlamp.supabase.co)
+   - anon/public key
+   - service_role key (secret)
+
+3. Visit: https://supabase.com/dashboard/project/qohyutlxwekppkrdlamp/settings/database
+4. Copy the database password or reset it
+
+5. Update the .env file with these values
+
+Would you like me to help you update these values now?

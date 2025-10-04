@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { createClientComponentClient } from '@/lib/supabase'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,21 +14,152 @@ import { formatCurrency } from '@/lib/utils'
 interface Performer {
   id: string
   stage_name: string
+  slug: string
   bio: string
-  performance_types: string[]
-  service_areas: string[]
-  base_rate: number
-  hourly_rate: number
+  services: any
+  rate_card: any
+  is_available: boolean
+  hero_image: string
   rating: number
   total_reviews: number
   featured: boolean
   verified: boolean
-  user: {
-    profile_picture_url: string
-    first_name: string
-    last_name: string
+  profile: {
+    display_name: string
+    whatsapp: string
+    phone: string
+    email: string
   }
 }
+
+// Memoized performer card component
+const PerformerCard = memo(({
+  performer,
+  isFavorite,
+  onToggleFavorite,
+  onShare
+}: {
+  performer: Performer
+  isFavorite: boolean
+  onToggleFavorite: (id: string) => void
+  onShare: (performer: Performer) => void
+}) => (
+  <Card key={performer.id} className="card-hover group">
+    <div className="relative">
+      <div className="aspect-video bg-gradient-to-br from-purple-100 to-pink-100 rounded-t-lg overflow-hidden">
+        {performer.hero_image ? (
+          <Image
+            src={performer.hero_image}
+            alt={performer.stage_name}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-4xl font-bold text-gray-400">
+              {performer.stage_name.charAt(0)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Badges */}
+      <div className="absolute top-3 left-3 flex gap-2">
+        {performer.featured && (
+          <Badge className="bg-yellow-500 text-yellow-50">Featured</Badge>
+        )}
+        {performer.verified && (
+          <Badge className="bg-blue-500 text-blue-50">Verified</Badge>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          size="sm"
+          variant="secondary"
+          className="p-2"
+          onClick={() => onToggleFavorite(performer.id)}
+        >
+          <Heart
+            className={`w-4 h-4 ${
+              isFavorite ? 'fill-red-500 text-red-500' : ''
+            }`}
+          />
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="p-2"
+          onClick={() => onShare(performer)}
+        >
+          <Share className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+
+    <CardContent className="p-6">
+      <div className="space-y-3">
+        <div>
+          <h3 className="font-semibold text-lg mb-1">{performer.stage_name}</h3>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+              <span>{performer.rating?.toFixed(1) || 'New'}</span>
+              {performer.total_reviews > 0 && (
+                <span>({performer.total_reviews} reviews)</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {performer.bio}
+        </p>
+
+        <div className="flex flex-wrap gap-1">
+          {Object.keys(performer.services || {}).slice(0, 3).map((service, index) => (
+            <Badge key={index} variant="secondary" className="text-xs">
+              {service.replace('_', ' ')}
+            </Badge>
+          ))}
+          {Object.keys(performer.services || {}).length > 3 && (
+            <Badge variant="secondary" className="text-xs">
+              +{Object.keys(performer.services || {}).length - 3} more
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <div className={`w-2 h-2 rounded-full mr-2 ${performer.is_available ? 'bg-green-500' : 'bg-gray-400'}`} />
+            <span>{performer.is_available ? 'Available Now' : 'Unavailable'}</span>
+          </div>
+          <div className="flex items-center gap-1 font-semibold">
+            <DollarSign className="w-4 h-4" />
+            <span>From ${Math.min(...Object.values(performer.rate_card || { default: 100 }))}/hr</span>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t">
+          <div className="flex gap-2">
+            <Link href={`/performer/${performer.slug || performer.id}`} className="flex-1">
+              <Button variant="outline" className="w-full">
+                View Profile
+              </Button>
+            </Link>
+            <Link href={`/book/${performer.id}`} className="flex-1">
+              <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700">
+                Book Now
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+))
+
 
 interface PerformerGridProps {
   searchQuery?: string
@@ -47,69 +178,140 @@ export function PerformerGrid({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [sortBy, setSortBy] = useState<string>('featured')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClientComponentClient()
 
-  useEffect(() => {
-    fetchPerformers()
-  }, [searchParams])
+  const ITEMS_PER_PAGE = 12
 
-  const fetchPerformers = async () => {
+  // Memoize search parameters to avoid unnecessary re-renders
+  const searchFilters = useMemo(() => ({
+    search: searchParams.get('search'),
+    type: searchParams.get('type'),
+    location: searchParams.get('location'),
+    minPrice: searchParams.get('minPrice'),
+    maxPrice: searchParams.get('maxPrice'),
+    available: searchParams.get('available'),
+    featured: searchParams.get('featured'),
+    verified: searchParams.get('verified')
+  }), [searchParams])
+
+  const fetchPerformers = useCallback(async (reset = false) => {
     try {
       setLoading(true)
+      setError('')
 
       let query = supabase
         .from('performers')
         .select(`
           *,
-          user:users!inner(
-            profile_picture_url,
-            first_name,
-            last_name
+          profile:profiles!performers_user_id_fkey(
+            display_name,
+            whatsapp,
+            phone,
+            email
           )
-        `)
-        .order('featured', { ascending: false })
-        .order('rating', { ascending: false })
+        `, { count: 'exact' })
 
-      // Apply filters based on URL params
-      const search = searchParams.get('search')
-      const type = searchParams.get('type')
-      const loc = searchParams.get('location')
-      const minPrice = searchParams.get('minPrice')
-      const maxPrice = searchParams.get('maxPrice')
-
-      if (search) {
-        query = query.or(`stage_name.ilike.%${search}%,bio.ilike.%${search}%`)
+      // Apply sorting
+      switch (sortBy) {
+        case 'featured':
+          query = query.order('featured', { ascending: false }).order('rating', { ascending: false })
+          break
+        case 'rating':
+          query = query.order('rating', { ascending: false }).order('total_reviews', { ascending: false })
+          break
+        case 'price-low':
+          query = query.order('rate_card', { ascending: true })
+          break
+        case 'price-high':
+          query = query.order('rate_card', { ascending: false })
+          break
+        case 'newest':
+          query = query.order('created_at', { ascending: false })
+          break
+        default:
+          query = query.order('featured', { ascending: false }).order('rating', { ascending: false })
       }
 
-      if (type) {
-        query = query.contains('performance_types', [type])
+      // Apply filters using memoized values
+      if (searchFilters.search) {
+        query = query.or(`stage_name.ilike.%${searchFilters.search}%,bio.ilike.%${searchFilters.search}%`)
       }
 
-      if (loc) {
-        query = query.contains('service_areas', [loc])
+      if (searchFilters.type) {
+        query = query.contains('services', { [searchFilters.type]: true })
       }
 
-      if (minPrice) {
-        query = query.gte('hourly_rate', parseInt(minPrice))
+      if (searchFilters.available === 'true') {
+        query = query.eq('is_available', true)
       }
 
-      if (maxPrice) {
-        query = query.lte('hourly_rate', parseInt(maxPrice))
+      if (searchFilters.featured === 'true') {
+        query = query.eq('featured', true)
       }
 
-      const { data, error } = await query
+      if (searchFilters.verified === 'true') {
+        query = query.eq('verified', true)
+      }
 
-      if (error) throw error
+      // Add pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE
+      const to = from + ITEMS_PER_PAGE - 1
+      query = query.range(from, to)
 
-      setPerformers(data || [])
+      const { data, error, count } = await query
+
+      if (error) {
+        console.error('Supabase error:', error)
+
+        // Provide more specific error messages
+        if (error.code === 'PGRST116') {
+          throw new Error('No performers found in database. Please check if data has been seeded.')
+        } else if (error.code === 'PGRST301') {
+          throw new Error('Database configuration error. Please check if RLS policies are correctly set.')
+        } else if (error.message.includes('JWT')) {
+          throw new Error('Authentication error. Please check your Supabase configuration.')
+        } else if (error.message.includes('network')) {
+          throw new Error('Network error. Please check your internet connection.')
+        } else {
+          throw new Error(`Database error: ${error.message}`)
+        }
+      }
+
+      const newPerformers = data || []
+
+      if (reset || currentPage === 1) {
+        setPerformers(newPerformers)
+      } else {
+        setPerformers(prev => [...prev, ...newPerformers])
+      }
+
+      setTotalCount(count || 0)
+      setHasMore((count || 0) > currentPage * ITEMS_PER_PAGE)
     } catch (err: any) {
-      setError(err.message)
+      console.error('Error fetching performers:', err)
+      setError(err.message || 'Failed to load performers. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, sortBy, searchFilters, currentPage])
+
+  useEffect(() => {
+    setCurrentPage(1) // Reset to first page when filters change
+    setPerformers([]) // Clear existing performers
+    fetchPerformers(true)
+  }, [searchFilters, sortBy, fetchPerformers])
+
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchPerformers(false)
+    }
+  }, [currentPage, fetchPerformers])
 
   const toggleFavorite = (performerId: string) => {
     setFavorites(prev => {
@@ -157,22 +359,62 @@ export function PerformerGrid({
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 mb-4">Error loading performers: {error}</p>
-        <Button onClick={() => fetchPerformers()}>Try Again</Button>
+        <div className="max-w-md mx-auto">
+          <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Performers</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <div className="space-y-2">
+            <Button
+              onClick={() => fetchPerformers()}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+            >
+              Try Again
+            </Button>
+            <p className="text-sm text-gray-500">
+              If the problem persists, please check your internet connection or contact support.
+            </p>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (performers.length === 0) {
+  if (!loading && performers.length === 0) {
     return (
       <div className="text-center py-12">
-        <h3 className="text-lg font-semibold mb-2">No performers found</h3>
-        <p className="text-muted-foreground mb-4">
-          Try adjusting your filters or search criteria.
-        </p>
-        <Button onClick={() => router.push('/performers')}>
-          Clear Filters
-        </Button>
+        <div className="max-w-md mx-auto">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No performers found</h3>
+          <p className="text-gray-600 mb-4">
+            We couldn't find any performers matching your criteria. Try adjusting your filters or search terms.
+          </p>
+          <div className="space-y-2">
+            <Button
+              onClick={() => router.push('/performers')}
+              variant="outline"
+              className="mr-2"
+            >
+              Clear All Filters
+            </Button>
+            <Button
+              onClick={() => fetchPerformers()}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+            >
+              Refresh
+            </Button>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">
+            New to the platform? <Link href="/vetting/apply" className="text-orange-600 hover:text-orange-700">Apply to become a performer</Link>
+          </p>
+        </div>
       </div>
     )
   }
@@ -183,7 +425,11 @@ export function PerformerGrid({
         <p className="text-muted-foreground">
           {performers.length} performer{performers.length !== 1 ? 's' : ''} found
         </p>
-        <select className="border rounded-md px-3 py-2 bg-white">
+        <select
+          className="border rounded-md px-3 py-2 bg-white text-sm"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
           <option value="featured">Featured First</option>
           <option value="rating">Highest Rated</option>
           <option value="price-low">Price: Low to High</option>
@@ -194,129 +440,35 @@ export function PerformerGrid({
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {performers.map((performer) => (
-          <Card key={performer.id} className="card-hover group">
-            <div className="relative">
-              <div className="aspect-video bg-gradient-to-br from-purple-100 to-pink-100 rounded-t-lg overflow-hidden">
-                {performer.user.profile_picture_url ? (
-                  <Image
-                    src={performer.user.profile_picture_url}
-                    alt={performer.stage_name}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-4xl font-bold text-gray-400">
-                      {performer.stage_name.charAt(0)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Badges */}
-              <div className="absolute top-3 left-3 flex gap-2">
-                {performer.featured && (
-                  <Badge className="bg-yellow-500 text-yellow-50">Featured</Badge>
-                )}
-                {performer.verified && (
-                  <Badge className="bg-blue-500 text-blue-50">Verified</Badge>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="p-2"
-                  onClick={() => toggleFavorite(performer.id)}
-                >
-                  <Heart
-                    className={`w-4 h-4 ${
-                      favorites.has(performer.id) ? 'fill-red-500 text-red-500' : ''
-                    }`}
-                  />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="p-2"
-                  onClick={() => sharePerformer(performer)}
-                >
-                  <Share className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">{performer.stage_name}</h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span>{performer.rating?.toFixed(1) || 'New'}</span>
-                      {performer.total_reviews > 0 && (
-                        <span>({performer.total_reviews} reviews)</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {performer.bio}
-                </p>
-
-                <div className="flex flex-wrap gap-1">
-                  {performer.performance_types.slice(0, 3).map((type, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {type}
-                    </Badge>
-                  ))}
-                  {performer.performance_types.length > 3 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{performer.performance_types.length - 3} more
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{performer.service_areas[0] || 'Multiple areas'}</span>
-                  </div>
-                  <div className="flex items-center gap-1 font-semibold">
-                    <DollarSign className="w-4 h-4" />
-                    <span>{formatCurrency(performer.hourly_rate)}/hr</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t">
-                  <div className="flex gap-2">
-                    <Link href={`/performers/${performer.id}`} className="flex-1">
-                      <Button variant="outline" className="w-full">
-                        View Profile
-                      </Button>
-                    </Link>
-                    <Link href={`/book/${performer.id}`} className="flex-1">
-                      <Button className="w-full">
-                        Book Now
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <PerformerCard
+            key={performer.id}
+            performer={performer}
+            isFavorite={favorites.has(performer.id)}
+            onToggleFavorite={toggleFavorite}
+            onShare={sharePerformer}
+          />
         ))}
       </div>
 
       {/* Load More Button */}
-      {performers.length >= 12 && (
+      {hasMore && performers.length > 0 && (
         <div className="text-center pt-8">
-          <Button variant="outline" size="lg">
-            Load More Performers
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setCurrentPage(prev => prev + 1)}
+            disabled={loading}
+            className="min-w-[200px]"
+          >
+            {loading ? 'Loading...' : `Load More Performers (${totalCount - performers.length} remaining)`}
           </Button>
+        </div>
+      )}
+
+      {/* Pagination Info */}
+      {performers.length > 0 && (
+        <div className="text-center pt-4 text-sm text-muted-foreground">
+          Showing {performers.length} of {totalCount} performer{totalCount !== 1 ? 's' : ''}
         </div>
       )}
     </div>

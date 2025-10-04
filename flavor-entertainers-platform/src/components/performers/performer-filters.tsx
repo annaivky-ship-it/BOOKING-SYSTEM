@@ -228,7 +228,7 @@ export function PerformerFilters() {
               <Checkbox
                 id="available"
                 checked={availableOnly}
-                onCheckedChange={setAvailableOnly}
+                onCheckedChange={(checked) => setAvailableOnly(checked === true)}
               />
               <Label htmlFor="available" className="text-sm cursor-pointer">
                 Available this week
@@ -239,7 +239,7 @@ export function PerformerFilters() {
               <Checkbox
                 id="featured"
                 checked={featuredOnly}
-                onCheckedChange={setFeaturedOnly}
+                onCheckedChange={(checked) => setFeaturedOnly(checked === true)}
               />
               <Label htmlFor="featured" className="text-sm cursor-pointer">
                 Featured performers only
@@ -250,7 +250,7 @@ export function PerformerFilters() {
               <Checkbox
                 id="verified"
                 checked={verifiedOnly}
-                onCheckedChange={setVerifiedOnly}
+                onCheckedChange={(checked) => setVerifiedOnly(checked === true)}
               />
               <Label htmlFor="verified" className="text-sm cursor-pointer">
                 Verified performers only
@@ -296,7 +296,7 @@ export function PerformerFilters() {
 
       {/* Apply Filters Button */}
       <div className="sticky bottom-4">
-        <Button onClick={applyFilters} className="w-full">
+        <Button onClick={applyFilters} className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
           Apply Filters
         </Button>
       </div>

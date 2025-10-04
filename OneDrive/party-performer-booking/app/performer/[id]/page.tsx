@@ -19,7 +19,7 @@ export default async function PerformerDetailPage({ params }: PerformerDetailPro
     .from('performer_services')
     .select('id, rate_override, services(id, name, rate, unit)')
     .eq('performer_id', id);
-  const serviceList = services?.map((ps) => {
+  const serviceList = services?.map((ps: any) => {
     const baseRate = ps.services?.rate || 0;
     const rate = ps.rate_override || baseRate;
     return { id: ps.services?.id, name: ps.services?.name, rate, unit: ps.services?.unit };
@@ -38,7 +38,7 @@ export default async function PerformerDetailPage({ params }: PerformerDetailPro
           </p>
           <h3>Services</h3>
           <ul>
-            {serviceList.map((s) => (
+            {serviceList.map((s: any) => (
               <li key={s.id}>{s.name} - ${s.rate}/{s.unit}</li>
             ))}
           </ul>

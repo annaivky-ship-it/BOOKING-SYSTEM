@@ -23,7 +23,7 @@ export async function getUserProfile() {
   if (!user) return null
 
   const { data: profile } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
@@ -74,12 +74,12 @@ export async function canManageApplication(applicationId: string) {
 
   const supabase = createServerSupabaseClient()
   const { data: application } = await supabase
-    .from('vetting_applications')
-    .select('user_id')
+    .from('vetting_applications_new')
+    .select('client_id')
     .eq('id', applicationId)
     .single()
 
-  return application?.user_id === profile.id
+  return application?.client_id === profile.id
 }
 
 export async function canManageBooking(bookingId: string) {
@@ -100,7 +100,7 @@ export async function canManageBooking(bookingId: string) {
 
   return (
     booking?.client_id === profile.id ||
-    booking?.performer?.user_id === profile.id
+    booking?.performer?.[0]?.user_id === profile.id
   )
 }
 
@@ -124,6 +124,108 @@ export async function canViewPayment(paymentId: string) {
 
   return (
     payment?.booking?.client_id === profile.id ||
-    payment?.booking?.performer?.user_id === profile.id
+    payment?.booking?.performer?.[0]?.user_id === profile.id
   )
+}
+
+// Audit logging
+export async function logAuditEvent(
+  eventType: string,
+  action: string,
+  details: Record<string, any> = {}
+) {
+  const supabase = createServerSupabaseClient()
+  const user = await getUser()
+
+  if (!user) return
+
+  await supabase.from('audit_log').insert({
+    actor: user.id,
+    event_type: eventType,
+    action,
+    details,
+  })
+}
+
+// Blacklist check utility
+export async function isBlacklisted(email: string, phone?: string) {
+  const supabase = createServerSupabaseClient()
+
+  const { data: blacklistEntry } = await supabase
+    .from('blacklist')
+    .select('*')
+    .or(`email.eq.${email}${phone ? `,phone.eq.${phone}` : ''}`)
+    .eq('status', 'active')
+    .single()
+
+  return {
+    isBlacklisted: !!blacklistEntry,
+    reason: blacklistEntry?.reason,
+    dateAdded: blacklistEntry?.date_added,
+  }
+}
+
+// Get performer by user ID
+export async function getPerformerByUserId(userId: string) {
+  const supabase = createServerSupabaseClient()
+
+  const { data: performer } = await supabase
+    .from('performers')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+
+  return performer
+}
+
+// Check if user has completed vetting
+export async function isVetted(userId: string) {
+  const supabase = createServerSupabaseClient()
+
+  const { data: vetting } = await supabase
+    .from('vetting_applications_new')
+    .select('status')
+    .eq('client_id', userId)
+    .eq('status', 'approved')
+    .single()
+
+  return !!vetting
+}
+
+// Rate limiting check
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+export function checkRateLimit(
+  identifier: string,
+  maxRequests: number = 10,
+  windowMs: number = 60000
+): { allowed: boolean; remaining: number; resetTime: number } {
+  const now = Date.now()
+  const key = identifier
+
+  let bucket = rateLimitMap.get(key)
+
+  if (!bucket || now > bucket.resetTime) {
+    bucket = {
+      count: 0,
+      resetTime: now + windowMs,
+    }
+    rateLimitMap.set(key, bucket)
+  }
+
+  if (bucket.count >= maxRequests) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetTime: bucket.resetTime,
+    }
+  }
+
+  bucket.count++
+
+  return {
+    allowed: true,
+    remaining: maxRequests - bucket.count,
+    resetTime: bucket.resetTime,
+  }
 }

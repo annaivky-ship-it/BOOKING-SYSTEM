@@ -47,10 +47,10 @@ import {
   RefreshCw,
   Download
 } from 'lucide-react';
-import type { Database } from '@/lib/types/database';
+import type { DatabaseExtended } from '@/lib/types/database';
 
-type Booking = Database['public']['Tables']['bookings']['Row'];
-type BookingStatus = Database['public']['Enums']['booking_status'];
+type Booking = DatabaseExtended['public']['Tables']['bookings']['Row'];
+type BookingStatus = DatabaseExtended['public']['Enums']['booking_status'];
 
 interface BookingWithDetails extends Booking {
   client?: {

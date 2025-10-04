@@ -1,0 +1,323 @@
+// Flavor Entertainers Platform - Complete Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PERFORMER
+  CLIENT
+}
+
+enum AvailabilityStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+}
+
+enum ServiceCategory {
+  WAITRESS
+  STRIP
+  XXX
+  SPECIALTY
+}
+
+enum ServiceUnit {
+  PER_HOUR
+  FLAT
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentType {
+  DEPOSIT
+  BALANCE
+  REFERRAL
+}
+
+enum PaymentMethod {
+  PAYID
+  OTHER
+}
+
+enum PaymentStatus {
+  UPLOADED
+  VERIFIED
+  REJECTED
+}
+
+enum VettingStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum DNSStatus {
+  ACTIVE
+  CLEARED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  role        UserRole
+  phone       String?
+  whatsapp    String?
+  legal_name  String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  performer_profile Performer?
+  client_bookings   Booking[]  @relation("ClientBookings")
+  vetting_apps      VettingApplication[]
+  notifications     Notification[]
+  audit_actions     AuditLog[] @relation("AuditActor")
+
+  @@map("users")
+}
+
+model Performer {
+  id                String             @id @default(cuid())
+  user_id          String             @unique
+  stage_name       String
+  bio              String?
+  categories       ServiceCategory[]
+  base_rates       Json? // Flexible JSON for different rate structures
+  media_refs       String[] // Array of file references
+  availability_status AvailabilityStatus @default(OFFLINE)
+  location_area    String?
+  rating          Float?             @default(0)
+  verified        Boolean            @default(false)
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+
+  // Relations
+  user             User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  services         PerformerService[]
+  bookings         Booking[]
+  availability     Availability[]
+
+  @@map("performers")
+}
+
+model Service {
+  id           String          @id @default(cuid())
+  category     ServiceCategory
+  name         String
+  description  String?
+  unit         ServiceUnit
+  min_duration Int? // minutes
+  base_rate    Decimal         @db.Decimal(10, 2)
+  active       Boolean         @default(true)
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+
+  // Relations
+  performer_services PerformerService[]
+  bookings          Booking[]
+
+  @@map("services")
+}
+
+model PerformerService {
+  id           String   @id @default(cuid())
+  performer_id String
+  service_id   String
+  custom_rate  Decimal? @db.Decimal(10, 2)
+  active       Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Relations
+  performer Performer @relation(fields: [performer_id], references: [id], onDelete: Cascade)
+  service   Service   @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([performer_id, service_id])
+  @@map("performer_services")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  client_id     String
+  performer_id  String
+  service_id    String
+  event_date    DateTime
+  start_time    String // HH:MM format
+  duration_mins Int
+  address       String
+  notes         String?
+  subtotal      Decimal       @db.Decimal(10, 2)
+  deposit_due   Decimal       @db.Decimal(10, 2)
+  status        BookingStatus @default(PENDING)
+  reference_code String       @unique // BK-{id}-{random}
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  // Relations
+  client       User                  @relation("ClientBookings", fields: [client_id], references: [id])
+  performer    Performer             @relation(fields: [performer_id], references: [id])
+  service      Service               @relation(fields: [service_id], references: [id])
+  payments     PaymentTransaction[]
+  audit_logs   AuditLog[]
+
+  @@index([client_id])
+  @@index([performer_id])
+  @@index([status])
+  @@index([event_date])
+  @@map("bookings")
+}
+
+model PaymentTransaction {
+  id           String        @id @default(cuid())
+  booking_id   String
+  type         PaymentType
+  method       PaymentMethod
+  amount       Decimal       @db.Decimal(10, 2)
+  currency     String        @default("AUD")
+  reference    String? // PayID reference or other identifier
+  receipt_file_id String?
+  status       PaymentStatus @default(UPLOADED)
+  verified_by  String?
+  verified_at  DateTime?
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  // Relations
+  booking Booking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+
+  @@index([booking_id])
+  @@index([status])
+  @@map("payment_transactions")
+}
+
+model VettingApplication {
+  id         String        @id @default(cuid())
+  client_id  String
+  event_date DateTime
+  address    String
+  event_type String
+  status     VettingStatus @default(SUBMITTED)
+  reason     String?
+  id_valid   Boolean       @default(false)
+  file_id    String?
+  ip_address String?
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+
+  // Relations
+  client     User          @relation(fields: [client_id], references: [id])
+  audit_logs AuditLog[]
+
+  @@index([client_id])
+  @@index([status])
+  @@map("vetting_applications")
+}
+
+model DNSList {
+  id         String    @id @default(cuid())
+  full_name  String
+  email      String?
+  phone      String?
+  reason     String
+  status     DNSStatus @default(ACTIVE)
+  added_by   String
+  added_at   DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@map("dns_list")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  timestamp     DateTime @default(now())
+  actor_user_id String?
+  event_type    String
+  action        String
+  details       Json
+  booking_id    String?
+  application_id String?
+  client_email  String?
+  ip_address    String?
+
+  // Relations
+  actor       User?               @relation("AuditActor", fields: [actor_user_id], references: [id])
+  booking     Booking?            @relation(fields: [booking_id], references: [id])
+  application VettingApplication? @relation(fields: [application_id], references: [id])
+
+  @@index([timestamp])
+  @@index([event_type])
+  @@index([actor_user_id])
+  @@map("audit_log")
+}
+
+model Notification {
+  id       String              @id @default(cuid())
+  user_id  String
+  channel  NotificationChannel
+  template String
+  payload  Json
+  status   NotificationStatus  @default(PENDING)
+  sent_at  DateTime?
+  created_at DateTime          @default(now())
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([status])
+  @@map("notifications")
+}
+
+model Availability {
+  id           String   @id @default(cuid())
+  performer_id String
+  date         DateTime @db.Date
+  start_time   String // HH:MM format
+  end_time     String // HH:MM format
+  is_available Boolean  @default(true)
+  created_at   DateTime @default(now())
+
+  // Relations
+  performer Performer @relation(fields: [performer_id], references: [id], onDelete: Cascade)
+
+  @@unique([performer_id, date, start_time])
+  @@index([performer_id, date])
+  @@map("availability")
+}
+
+model SystemSettings {
+  key        String   @id
+  value      Json
+  updated_at DateTime @updatedAt
+
+  @@map("system_settings")
+}

@@ -1,5 +1,5 @@
 import twilio from 'twilio';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database';
 
 // Initialize Twilio client
@@ -12,7 +12,7 @@ if (!accountSid || !authToken) {
   console.warn('Twilio credentials not configured. SMS/WhatsApp features will be disabled.');
 }
 
-let twilioClient: any = null;
+let twilioClient: twilio.Twilio | null = null;
 
 try {
   if (accountSid && authToken) {
@@ -24,9 +24,16 @@ try {
 }
 
 // Initialize Supabase client for service-side operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+let supabase: SupabaseClient<Database> | null = null;
+
+if (supabaseUrl && supabaseServiceKey) {
+  supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
+} else {
+  console.warn('Supabase credentials not configured. Database logging will be disabled.');
+}
 
 export interface SendSMSParams {
   to: string;
@@ -78,24 +85,29 @@ export async function sendSMS({
     });
 
     // Log message in database
-    const { data: messageLog, error: dbError } = await supabase
-      .from('message_logs')
-      .insert({
-        recipient_id: userId || null,
-        booking_id: bookingId || null,
-        message_type: 'sms',
-        recipient_phone: formattedPhone,
-        message_content: message,
-        template_id: templateId || null,
-        twilio_sid: message_instance.sid,
-        twilio_status: message_instance.status,
-        status: 'sent'
-      })
-      .select()
-      .single();
+    let messageLog = null;
+    if (supabase) {
+      const { data, error: dbError } = await supabase
+        .from('message_logs')
+        .insert({
+          recipient_id: userId || null,
+          booking_id: bookingId || null,
+          message_type: 'sms',
+          recipient_phone: formattedPhone,
+          message_content: message,
+          template_id: templateId || null,
+          twilio_sid: message_instance.sid,
+          twilio_status: message_instance.status,
+          status: 'sent'
+        })
+        .select()
+        .single();
 
-    if (dbError) {
-      console.error('Error logging SMS message:', dbError);
+      if (dbError) {
+        console.error('Error logging SMS message:', dbError);
+      } else {
+        messageLog = data;
+      }
     }
 
     return {
@@ -104,11 +116,11 @@ export async function sendSMS({
       twilioSid: message_instance.sid
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending SMS:', error);
 
     // Log failed message
-    if (userId) {
+    if (userId && supabase) {
       await supabase
         .from('message_logs')
         .insert({
@@ -157,24 +169,29 @@ export async function sendWhatsApp({
     });
 
     // Log message in database
-    const { data: messageLog, error: dbError } = await supabase
-      .from('message_logs')
-      .insert({
-        recipient_id: userId || null,
-        booking_id: bookingId || null,
-        message_type: 'whatsapp',
-        recipient_phone: to,
-        message_content: message,
-        template_id: templateId || null,
-        twilio_sid: message_instance.sid,
-        twilio_status: message_instance.status,
-        status: 'sent'
-      })
-      .select()
-      .single();
+    let messageLog = null;
+    if (supabase) {
+      const { data, error: dbError } = await supabase
+        .from('message_logs')
+        .insert({
+          recipient_id: userId || null,
+          booking_id: bookingId || null,
+          message_type: 'whatsapp',
+          recipient_phone: to,
+          message_content: message,
+          template_id: templateId || null,
+          twilio_sid: message_instance.sid,
+          twilio_status: message_instance.status,
+          status: 'sent'
+        })
+        .select()
+        .single();
 
-    if (dbError) {
-      console.error('Error logging WhatsApp message:', dbError);
+      if (dbError) {
+        console.error('Error logging WhatsApp message:', dbError);
+      } else {
+        messageLog = data;
+      }
     }
 
     return {
@@ -183,11 +200,11 @@ export async function sendWhatsApp({
       twilioSid: message_instance.sid
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending WhatsApp:', error);
 
     // Log failed message
-    if (userId) {
+    if (userId && supabase) {
       await supabase
         .from('message_logs')
         .insert({
@@ -219,6 +236,10 @@ export async function sendAutomatedMessage(
   senderUserId?: string,
   bookingId?: string
 ): Promise<MessageResponse> {
+  if (!supabase) {
+    return { success: false, error: 'Database not configured' };
+  }
+
   try {
     // Get template and recipient info
     const { data: template } = await supabase
@@ -290,7 +311,7 @@ export async function sendAutomatedMessage(
 
     return { success: false, error: 'Unsupported message type' };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending automated message:', error);
     return { success: false, error: error.message };
   }
@@ -299,7 +320,19 @@ export async function sendAutomatedMessage(
 /**
  * Handle Twilio webhook for message status updates
  */
-export async function handleTwilioWebhook(webhookData: any) {
+interface TwilioWebhookData {
+  MessageSid?: string;
+  MessageStatus?: string;
+  ErrorCode?: string;
+  ErrorMessage?: string;
+}
+
+export async function handleTwilioWebhook(webhookData: TwilioWebhookData) {
+  if (!supabase) {
+    console.warn('Database not configured, skipping webhook processing');
+    return;
+  }
+
   try {
     const { MessageSid, MessageStatus, ErrorCode, ErrorMessage } = webhookData;
 
@@ -309,7 +342,15 @@ export async function handleTwilioWebhook(webhookData: any) {
     }
 
     // Update message status in database
-    const updateData: any = {
+    interface MessageUpdateData {
+      twilio_status?: string;
+      status?: string;
+      updated_at: string;
+      delivered_at?: string;
+      error_message?: string;
+    }
+
+    const updateData: MessageUpdateData = {
       twilio_status: MessageStatus,
       status: mapTwilioStatusToInternal(MessageStatus),
       updated_at: new Date().toISOString()
@@ -340,6 +381,10 @@ export async function handleTwilioWebhook(webhookData: any) {
  * Get message delivery statistics
  */
 export async function getMessageStats(userId?: string, dateFrom?: Date, dateTo?: Date) {
+  if (!supabase) {
+    return null;
+  }
+
   let query = supabase
     .from('message_logs')
     .select('message_type, status, created_at');
@@ -360,13 +405,27 @@ export async function getMessageStats(userId?: string, dateFrom?: Date, dateTo?:
 
   if (!messages) return null;
 
-  const stats = {
+  interface MessageStats {
+    total: number;
+    sent: number;
+    delivered: number;
+    failed: number;
+    sms: number;
+    whatsapp: number;
+  }
+
+  interface MessageRecord {
+    status: string;
+    message_type: string;
+  }
+
+  const stats: MessageStats = {
     total: messages.length,
-    sent: messages.filter(m => m.status === 'sent').length,
-    delivered: messages.filter(m => m.status === 'delivered').length,
-    failed: messages.filter(m => m.status === 'failed').length,
-    sms: messages.filter(m => m.message_type === 'sms').length,
-    whatsapp: messages.filter(m => m.message_type === 'whatsapp').length
+    sent: messages.filter((m: MessageRecord) => m.status === 'sent').length,
+    delivered: messages.filter((m: MessageRecord) => m.status === 'delivered').length,
+    failed: messages.filter((m: MessageRecord) => m.status === 'failed').length,
+    sms: messages.filter((m: MessageRecord) => m.message_type === 'sms').length,
+    whatsapp: messages.filter((m: MessageRecord) => m.message_type === 'whatsapp').length
   };
 
   return stats;

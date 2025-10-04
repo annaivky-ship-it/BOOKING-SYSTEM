@@ -89,25 +89,25 @@ export function validatePayID(identifier: string): { valid: boolean; type: 'emai
   return { valid: false, type: null }
 }
 
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: never[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout
   return (...args: Parameters<T>) => {
     clearTimeout(timeout)
-    timeout = setTimeout(() => func.apply(this, args), wait)
+    timeout = setTimeout(() => func(...args), wait)
   }
 }
 
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: never[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
-      func.apply(this, args)
+      func(...args)
       inThrottle = true
       setTimeout(() => (inThrottle = false), limit)
     }
@@ -168,4 +168,152 @@ export function getPaymentStatusColor(status: string): string {
   }
 
   return statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
+}
+
+// Backend API utilities
+export function generateReferenceCode(prefix: string, id: string): string {
+  const timestamp = Date.now().toString(36).toUpperCase()
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase()
+  return `${prefix}-${id.slice(-8)}-${timestamp}-${random}`
+}
+
+export function calculateDepositAmount(subtotal: number, depositPercent: number = 50): number {
+  return Math.round((subtotal * depositPercent) / 100 * 100) / 100
+}
+
+export function calculateBalanceAmount(subtotal: number, depositAmount: number): number {
+  return Math.round((subtotal - depositAmount) * 100) / 100
+}
+
+export function createAuditLog(
+  eventType: string,
+  action: string,
+  details: Record<string, any>,
+  actorUserId?: string,
+  bookingId?: string,
+  applicationId?: string,
+  clientEmail?: string,
+  ipAddress?: string
+) {
+  return {
+    event_type: eventType,
+    action,
+    details,
+    actor_user_id: actorUserId,
+    booking_id: bookingId,
+    application_id: applicationId,
+    client_email: clientEmail,
+    ip_address: ipAddress,
+    timestamp: new Date()
+  }
+}
+
+export function getClientIpAddress(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for')
+  const realIp = req.headers.get('x-real-ip')
+  const clientIp = req.headers.get('cf-connecting-ip')
+
+  if (forwarded) {
+    return forwarded.split(',')[0].trim()
+  }
+  if (realIp) {
+    return realIp
+  }
+  if (clientIp) {
+    return clientIp
+  }
+
+  return 'unknown'
+}
+
+export function sanitizeForDatabase(input: string): string {
+  return input.trim().replace(/[\x00-\x1F\x7F]/g, '')
+}
+
+export function validateTimeSlot(startTime: string, endTime: string): boolean {
+  const [startHour, startMin] = startTime.split(':').map(Number)
+  const [endHour, endMin] = endTime.split(':').map(Number)
+
+  const startMinutes = startHour * 60 + startMin
+  const endMinutes = endHour * 60 + endMin
+
+  return endMinutes > startMinutes
+}
+
+export function isDateInFuture(dateString: string, minHoursAhead: number = 24): boolean {
+  const eventDate = new Date(dateString)
+  const minDate = new Date(Date.now() + minHoursAhead * 60 * 60 * 1000)
+  return eventDate >= minDate
+}
+
+export function formatPhoneForWhatsApp(phone: string): string {
+  // Remove all non-digit characters except +
+  const cleaned = phone.replace(/[^\d+]/g, '')
+
+  // Ensure it starts with whatsapp: prefix
+  if (cleaned.startsWith('+')) {
+    return `whatsapp:${cleaned}`
+  }
+  if (cleaned.startsWith('61')) {
+    return `whatsapp:+${cleaned}`
+  }
+  if (cleaned.startsWith('0')) {
+    return `whatsapp:+61${cleaned.substring(1)}`
+  }
+
+  return `whatsapp:+${cleaned}`
+}
+
+export function maskSensitiveData(data: string, visibleChars: number = 4): string {
+  if (data.length <= visibleChars) {
+    return '*'.repeat(data.length)
+  }
+
+  const masked = '*'.repeat(data.length - visibleChars)
+  const visible = data.slice(-visibleChars)
+  return masked + visible
+}
+
+export function createSuccessResponse<T>(data: T, message?: string) {
+  return {
+    success: true,
+    data,
+    message: message || 'Operation completed successfully'
+  }
+}
+
+export function createErrorResponse(message: string, code?: string, statusCode: number = 400) {
+  return {
+    success: false,
+    error: {
+      message,
+      code,
+      statusCode
+    }
+  }
+}
+
+export function validateFileUpload(file: File, allowedTypes: string[], maxSizeBytes: number): { valid: boolean; error?: string } {
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: `File type ${file.type} not allowed. Allowed types: ${allowedTypes.join(', ')}`
+    }
+  }
+
+  if (file.size > maxSizeBytes) {
+    return {
+      valid: false,
+      error: `File size ${file.size} exceeds maximum allowed size of ${maxSizeBytes} bytes`
+    }
+  }
+
+  return { valid: true }
+}
+
+export function generateSecureFileName(originalName: string, userId: string): string {
+  const extension = originalName.split('.').pop()
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2)
+  return `${userId}/${timestamp}_${random}.${extension}`
 }

@@ -26,26 +26,20 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Shield,
   Eye,
   CheckCircle,
   XCircle,
   Clock,
-  User,
   FileText,
   Download,
   Search,
-  Filter,
-  RefreshCw,
-  AlertTriangle,
-  Star
+  RefreshCw
 } from 'lucide-react';
-import type { Database } from '@/lib/types/database';
+import type { DatabaseExtended, VettingApplicationWithUser } from '@/lib/types/database';
 
-type VettingApplication = Database['public']['Tables']['vetting_applications']['Row'];
-type ApplicationStatus = Database['public']['Enums']['application_status'];
+type ApplicationStatus = DatabaseExtended['public']['Enums']['vetting_status'];
 
-interface VettingApplicationWithUser extends VettingApplication {
+interface VettingApplicationWithUserLocal extends VettingApplicationWithUser {
   user?: {
     email: string;
     first_name: string;

@@ -3,11 +3,14 @@
  */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    appDir: true
-  },
   images: {
     domains: ["images.unsplash.com", "source.unsplash.com"]
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
   }
 };
 

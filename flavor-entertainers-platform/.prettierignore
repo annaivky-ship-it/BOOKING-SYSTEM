@@ -1,0 +1,27 @@
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env*
+
+# Generated files
+*.min.js
+*.min.css
+
+# Supabase
+supabase/migrations/*.sql
+supabase/.temp/
+
+# Vercel
+.vercel
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

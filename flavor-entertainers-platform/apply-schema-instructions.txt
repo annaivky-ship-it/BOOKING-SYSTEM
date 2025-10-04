@@ -1,0 +1,56 @@
+=======================================================
+HOW TO APPLY DATABASE SCHEMA TO SUPABASE
+=======================================================
+
+The database is currently EMPTY. You need to apply the schema.
+
+STEP 1: Open SQL Editor
+------------------------
+Click this link:
+https://supabase.com/dashboard/project/qohyutlxwekppkrdlamp/sql/new
+
+STEP 2: Get the SQL File
+-------------------------
+Windows Explorer Method:
+1. Press Windows + E
+2. Paste this path: C:\Users\annai\flavor-entertainers-platform\supabase\migrations
+3. Open file: CONSOLIDATED_SCHEMA.sql
+4. Select All (Ctrl+A), Copy (Ctrl+C)
+
+OR Terminal Method:
+1. Run: notepad C:\Users\annai\flavor-entertainers-platform\supabase\migrations\CONSOLIDATED_SCHEMA.sql
+2. Select All (Ctrl+A), Copy (Ctrl+C)
+
+STEP 3: Run in SQL Editor
+--------------------------
+1. Paste the SQL (Ctrl+V) into Supabase SQL Editor
+2. Click the RUN button (or press Ctrl+Enter)
+3. Wait for "Success" message (may take 30 seconds)
+
+STEP 4: Verify Tables Created
+------------------------------
+Go to: https://supabase.com/dashboard/project/qohyutlxwekppkrdlamp/editor
+
+You should now see these tables in the left sidebar:
+✓ users
+✓ vetting_applications  
+✓ performers
+✓ bookings
+✓ services
+✓ performer_services
+✓ payments
+✓ payment_receipts
+✓ do_not_serve_list
+✓ blacklist_reason_types
+✓ whatsapp_messages
+✓ sms_messages
+✓ twilio_webhooks
+✓ payid_accounts
+✓ payid_transactions
+
+If you see errors:
+- Ignore "already exists" errors for types/functions
+- Check if tables were created despite errors
+- Run migrations one at a time from 001 to 006 if needed
+
+=======================================================

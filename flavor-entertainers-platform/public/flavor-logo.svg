@@ -1,0 +1,33 @@
+<svg width="220" height="50" viewBox="0 0 220 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background rounded rectangle -->
+  <rect x="0" y="0" width="220" height="50" rx="12" fill="url(#gradient1)"/>
+
+  <!-- FLAV text -->
+  <text x="15" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#2D1B2E">
+    FLAV
+  </text>
+
+  <!-- Orange circle for O -->
+  <circle cx="75" cy="21" r="10" fill="#FF6B35"/>
+  <circle cx="75" cy="21" r="6" fill="#FFFFFF"/>
+
+  <!-- R text -->
+  <text x="90" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#2D1B2E">
+    R
+  </text>
+
+  <!-- entertainers text -->
+  <text x="15" y="42" font-family="Arial, sans-serif" font-size="11" font-weight="400" fill="#2D1B2E" letter-spacing="0.5px">
+    entertainers
+  </text>
+
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFB088;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FF8A65;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#FF7043;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFB088;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,59 @@
+========================================
+FINAL MIGRATION STEPS - SQL EDITOR METHOD
+========================================
+
+Docker/CLI won't work due to IPv6/networking issues.
+Use SQL Editor instead (takes 2 minutes):
+
+STEP 1: Open SQL Editor
+------------------------
+https://supabase.com/dashboard/project/qohyutlxwekppkrdlamp/sql/new
+
+STEP 2: Open Migration File
+----------------------------
+Windows Explorer:
+  C:\Users\annai\flavor-entertainers-platform\supabase\migrations\CONSOLIDATED_SCHEMA.sql
+
+Or in terminal:
+  cd flavor-entertainers-platform
+  notepad supabase\migrations\CONSOLIDATED_SCHEMA.sql
+
+STEP 3: Copy ALL Content
+-------------------------
+- Select All (Ctrl+A)
+- Copy (Ctrl+C)
+
+STEP 4: Paste and Run
+---------------------
+- Paste in SQL Editor (Ctrl+V)
+- Click RUN button (or Ctrl+Enter)
+- Wait for "Success" message
+
+STEP 5: Verify Tables
+----------------------
+https://supabase.com/dashboard/project/qohyutlxwekppkrdlamp/editor
+
+Should see:
+- users
+- performers
+- bookings
+- services
+- payments
+- do_not_serve_list
+- etc.
+
+STEP 6: Deploy to Vercel
+-------------------------
+cd flavor-entertainers-platform
+npx vercel --prod
+
+========================================
+READY TO DEPLOY!
+========================================
+
+Once migrations are done, run:
+  npx vercel --prod
+
+Then verify at:
+  https://booking-system-lrkd.vercel.app
+

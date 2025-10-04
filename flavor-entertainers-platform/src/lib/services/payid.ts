@@ -1,389 +1,370 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/types/database';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { PayIDAccount, PayIDTransaction, PayIDTransactionWithDetails } from '@/lib/types/database';
 
-// Initialize Supabase client for service-side operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
+export class PayIDService {
+  private supabase = createClientComponentClient();
 
-export interface PayIDAccount {
-  id: string;
-  user_id: string;
-  payid_identifier: string;
-  payid_type: 'email' | 'mobile';
-  account_name: string;
-  bank_name?: string;
-  bsb?: string;
-  account_number?: string;
-  is_verified: boolean;
-  is_active: boolean;
-}
+  // Australian PayID Registry configuration
+  private readonly PAYID_REGISTRY_URL = process.env.PAYID_REGISTRY_URL || 'https://payid.com.au/api';
+  private readonly BANK_NETWORKS = {
+    'Commonwealth Bank': { bsb_prefix: '06', name: 'CBA' },
+    'Westpac': { bsb_prefix: '03', name: 'WBC' },
+    'ANZ': { bsb_prefix: '01', name: 'ANZ' },
+    'NAB': { bsb_prefix: '08', name: 'NAB' },
+    'Bendigo Bank': { bsb_prefix: '63', name: 'BEN' },
+    'ING': { bsb_prefix: '92', name: 'ING' },
+    'Macquarie Bank': { bsb_prefix: '18', name: 'MBL' },
+    'Bank of Queensland': { bsb_prefix: '12', name: 'BOQ' },
+    'Suncorp Bank': { bsb_prefix: '48', name: 'SUN' },
+    'Newcastle Permanent': { bsb_prefix: '65', name: 'NPB' }
+  };
 
-export interface PaymentRequest {
-  id: string;
-  booking_id: string;
-  payer_id: string;
-  recipient_id: string;
-  amount: number;
-  currency: string;
-  payid_identifier: string;
-  status: string;
-  due_date: string;
-  payment_date?: string;
-}
+  /**
+   * Setup a new PayID account for a user
+   */
+  async setupPayIDAccount(data: {
+    payid_identifier: string;
+    payid_type: 'email' | 'phone' | 'abn';
+    account_name: string;
+    bank_name: string;
+    bsb?: string;
+    account_number?: string;
+  }): Promise<{ success: boolean; account?: PayIDAccount; error?: string }> {
+    try {
+      const response = await fetch('/api/payid/setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-export interface CreatePaymentParams {
-  bookingId: string;
-  payerId: string;
-  recipientId: string;
-  amount: number;
-  description?: string;
-  dueDate?: Date;
-}
+      const result = await response.json();
 
-export interface PayIDValidationResult {
-  isValid: boolean;
-  accountName?: string;
-  bankName?: string;
-  error?: string;
-}
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Setup failed' };
+      }
 
-/**
- * Create a PayID account for a user
- */
-export async function createPayIDAccount(
-  userId: string,
-  payidIdentifier: string,
-  accountName: string,
-  bankName?: string,
-  bsb?: string,
-  accountNumber?: string
-): Promise<{ success: boolean; account?: PayIDAccount; error?: string }> {
-  try {
-    // Determine PayID type
-    const payidType = payidIdentifier.includes('@') ? 'email' : 'mobile';
-
-    // Validate PayID format
-    if (payidType === 'email' && !isValidEmail(payidIdentifier)) {
-      return { success: false, error: 'Invalid email format' };
+      return { success: true, account: result.payid_account };
+    } catch (error) {
+      console.error('PayID setup error:', error);
+      return { success: false, error: 'Network error occurred' };
     }
-
-    if (payidType === 'mobile' && !isValidMobileNumber(payidIdentifier)) {
-      return { success: false, error: 'Invalid mobile number format' };
-    }
-
-    // Check if PayID already exists
-    const { data: existing } = await supabase
-      .from('payid_accounts')
-      .select('id')
-      .eq('payid_identifier', payidIdentifier)
-      .eq('is_active', true)
-      .single();
-
-    if (existing) {
-      return { success: false, error: 'PayID already registered' };
-    }
-
-    // Create PayID account
-    const { data: account, error } = await supabase
-      .from('payid_accounts')
-      .insert({
-        user_id: userId,
-        payid_identifier: payidIdentifier,
-        payid_type: payidType,
-        account_name: accountName,
-        bank_name: bankName || null,
-        bsb: bsb || null,
-        account_number: accountNumber || null,
-        is_verified: false, // Will be verified through external process
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, account: account as PayIDAccount };
-
-  } catch (error: any) {
-    console.error('Error creating PayID account:', error);
-    return { success: false, error: error.message };
   }
-}
 
-/**
- * Validate PayID identifier with NPP (mock implementation)
- */
-export async function validatePayID(payidIdentifier: string): Promise<PayIDValidationResult> {
-  try {
-    // In a real implementation, this would call the NPP PayID resolution service
-    // For now, we'll simulate validation based on format
+  /**
+   * Verify a PayID account
+   */
+  async verifyPayIDAccount(
+    accountId: string,
+    verificationCode?: string,
+    verificationMethod: 'email_verification' | 'sms_verification' | 'document_verification' = 'email_verification'
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch('/api/payid/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          payid_account_id: accountId,
+          verification_code: verificationCode,
+          verification_method: verificationMethod,
+        }),
+      });
 
-    const isEmail = payidIdentifier.includes('@');
-    const isMobile = /^(\+61|0)[0-9]{9}$/.test(payidIdentifier.replace(/\s/g, ''));
+      const result = await response.json();
 
-    if (!isEmail && !isMobile) {
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Verification failed' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('PayID verification error:', error);
+      return { success: false, error: 'Network error occurred' };
+    }
+  }
+
+  /**
+   * Get user's PayID accounts
+   */
+  async getPayIDAccounts(): Promise<{
+    success: boolean;
+    accounts?: (PayIDAccount & { transaction_stats: any })[];
+    error?: string;
+  }> {
+    try {
+      const response = await fetch('/api/payid/accounts');
+      const result = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Failed to fetch accounts' };
+      }
+
+      return { success: true, accounts: result.accounts };
+    } catch (error) {
+      console.error('PayID accounts fetch error:', error);
+      return { success: false, error: 'Network error occurred' };
+    }
+  }
+
+  /**
+   * Send a PayID payment
+   */
+  async sendPayment(data: {
+    recipient_payid: string;
+    amount: number;
+    description: string;
+    reference?: string;
+    booking_id?: string;
+  }): Promise<{
+    success: boolean;
+    transaction?: PayIDTransaction;
+    transaction_id?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch('/api/payid/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Payment failed' };
+      }
+
       return {
-        isValid: false,
-        error: 'Invalid PayID format. Must be email or mobile number.'
+        success: true,
+        transaction: result.transaction,
+        transaction_id: result.transaction_id,
       };
+    } catch (error) {
+      console.error('PayID payment error:', error);
+      return { success: false, error: 'Network error occurred' };
     }
-
-    // Mock successful validation
-    return {
-      isValid: true,
-      accountName: 'Mock Account Name',
-      bankName: 'Mock Bank'
-    };
-
-  } catch (error: any) {
-    return {
-      isValid: false,
-      error: error.message
-    };
   }
-}
 
-/**
- * Create a payment request
- */
-export async function createPaymentRequest({
-  bookingId,
-  payerId,
-  recipientId,
-  amount,
-  description,
-  dueDate
-}: CreatePaymentParams): Promise<{ success: boolean; paymentId?: string; error?: string }> {
-  try {
-    // Get recipient's PayID account
-    const { data: payidAccount } = await supabase
-      .from('payid_accounts')
-      .select('*')
-      .eq('user_id', recipientId)
-      .eq('is_active', true)
-      .single();
+  /**
+   * Get PayID transactions
+   */
+  async getTransactions(params?: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+  }): Promise<{
+    success: boolean;
+    transactions?: PayIDTransactionWithDetails[];
+    total?: number;
+    has_more?: boolean;
+    error?: string;
+  }> {
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      if (params?.offset) searchParams.set('offset', params.offset.toString());
+      if (params?.status) searchParams.set('status', params.status);
 
-    if (!payidAccount) {
-      return { success: false, error: 'Recipient has no active PayID account' };
+      const response = await fetch(`/api/payid/transactions?${searchParams}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Failed to fetch transactions' };
+      }
+
+      return {
+        success: true,
+        transactions: result.transactions,
+        total: result.total,
+        has_more: result.has_more,
+      };
+    } catch (error) {
+      console.error('PayID transactions fetch error:', error);
+      return { success: false, error: 'Network error occurred' };
     }
-
-    // Calculate fees and net amount
-    const feeRate = 0.025; // 2.5% fee
-    const feeAmount = Math.round(amount * feeRate * 100) / 100;
-    const netAmount = amount - feeAmount;
-
-    // Create payment transaction
-    const { data: payment, error } = await supabase
-      .from('payment_transactions')
-      .insert({
-        booking_id: bookingId,
-        payer_id: payerId,
-        recipient_id: recipientId,
-        payment_method: 'payid',
-        amount: amount,
-        currency: 'AUD',
-        payid_identifier: payidAccount.payid_identifier,
-        payid_name: payidAccount.account_name,
-        fee_amount: feeAmount,
-        net_amount: netAmount,
-        status: 'pending',
-        description: description || `Payment for booking ${bookingId}`,
-        due_date: dueDate?.toISOString() || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, paymentId: payment.id };
-
-  } catch (error: any) {
-    console.error('Error creating payment request:', error);
-    return { success: false, error: error.message };
   }
-}
 
-/**
- * Get payment status
- */
-export async function getPaymentStatus(paymentId: string): Promise<{ payment?: any; error?: string }> {
-  try {
-    const { data: payment, error } = await supabase
-      .from('payment_transactions')
-      .select(`
-        *,
-        booking:bookings(*),
-        payer:users!payment_transactions_payer_id_fkey(id, email, full_name),
-        recipient:users!payment_transactions_recipient_id_fkey(id, email, full_name)
-      `)
-      .eq('id', paymentId)
-      .single();
+  /**
+   * Update PayID account status
+   */
+  async updateAccountStatus(
+    accountId: string,
+    action: 'activate' | 'deactivate' | 'set_primary'
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch('/api/payid/accounts', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          account_id: accountId,
+          action,
+        }),
+      });
 
-    if (error) {
-      return { error: error.message };
+      const result = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Update failed' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('PayID account update error:', error);
+      return { success: false, error: 'Network error occurred' };
     }
-
-    return { payment };
-
-  } catch (error: any) {
-    console.error('Error getting payment status:', error);
-    return { error: error.message };
   }
-}
 
-/**
- * Update payment status (called by webhook or manual update)
- */
-export async function updatePaymentStatus(
-  paymentId: string,
-  status: string,
-  externalTransactionId?: string,
-  paymentDate?: Date,
-  failureReason?: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const updateData: any = {
-      status,
-      updated_at: new Date().toISOString()
-    };
+  /**
+   * Delete/deactivate PayID account
+   */
+  async deleteAccount(accountId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(`/api/payid/accounts?account_id=${accountId}`, {
+        method: 'DELETE',
+      });
 
-    if (externalTransactionId) {
-      updateData.external_transaction_id = externalTransactionId;
+      const result = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: result.error || 'Deletion failed' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('PayID account deletion error:', error);
+      return { success: false, error: 'Network error occurred' };
     }
-
-    if (paymentDate) {
-      updateData.payment_date = paymentDate.toISOString();
-    }
-
-    if (failureReason) {
-      updateData.failure_reason = failureReason;
-    }
-
-    const { error } = await supabase
-      .from('payment_transactions')
-      .update(updateData)
-      .eq('id', paymentId);
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    // If payment completed, update booking status and send notifications
-    if (status === 'completed') {
-      await handlePaymentCompleted(paymentId);
-    }
-
-    return { success: true };
-
-  } catch (error: any) {
-    console.error('Error updating payment status:', error);
-    return { success: false, error: error.message };
   }
-}
 
-/**
- * Handle completed payment workflow
- */
-async function handlePaymentCompleted(paymentId: string) {
-  try {
-    // Get payment details
-    const { payment } = await getPaymentStatus(paymentId);
-    if (!payment) return;
+  /**
+   * Validate PayID format based on type
+   */
+  validatePayIDFormat(identifier: string, type: 'email' | 'phone' | 'abn'): boolean {
+    switch (type) {
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(identifier);
 
-    // Update booking status to confirmed
-    await supabase
-      .from('bookings')
-      .update({
-        status: 'confirmed',
-        payment_status: 'completed',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', payment.booking_id);
+      case 'phone':
+        // Australian phone number format
+        const phoneRegex = /^(\+61|0)[2-9]\d{8}$/;
+        return phoneRegex.test(identifier.replace(/\s+/g, ''));
 
-    // Send confirmation notifications (integrate with Twilio service)
-    // This would typically send SMS/WhatsApp confirmations to both client and performer
+      case 'abn':
+        // Australian Business Number format (11 digits)
+        const abnRegex = /^\d{11}$/;
+        return abnRegex.test(identifier.replace(/\s+/g, ''));
 
-  } catch (error) {
-    console.error('Error handling payment completion:', error);
+      default:
+        return false;
+    }
   }
-}
 
-/**
- * Get user's PayID accounts
- */
-export async function getUserPayIDAccounts(userId: string): Promise<PayIDAccount[]> {
-  try {
-    const { data: accounts } = await supabase
-      .from('payid_accounts')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
+  /**
+   * Get bank information from BSB
+   */
+  getBankFromBSB(bsb: string): { name: string; code: string } | null {
+    const cleanBSB = bsb.replace(/\D/g, '');
+    if (cleanBSB.length !== 6) return null;
 
-    return accounts || [];
+    const prefix = cleanBSB.substring(0, 2);
 
-  } catch (error) {
-    console.error('Error getting user PayID accounts:', error);
-    return [];
+    for (const [bankName, config] of Object.entries(this.BANK_NETWORKS)) {
+      if (config.bsb_prefix === prefix) {
+        return { name: bankName, code: config.name };
+      }
+    }
+
+    return null;
   }
-}
 
-/**
- * Get payment history for user
- */
-export async function getUserPaymentHistory(
-  userId: string,
-  limit: number = 50,
-  offset: number = 0
-): Promise<{ payments: any[]; total: number }> {
-  try {
-    // Get payments where user is either payer or recipient
-    const { data: payments, error } = await supabase
-      .from('payment_transactions')
-      .select(`
-        *,
-        booking:bookings(id, event_date, event_time, client_name, performer_name),
-        payer:users!payment_transactions_payer_id_fkey(id, email, full_name),
-        recipient:users!payment_transactions_recipient_id_fkey(id, email, full_name)
-      `)
-      .or(`payer_id.eq.${userId},recipient_id.eq.${userId}`)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+  /**
+   * Format PayID identifier for display
+   */
+  formatPayIDIdentifier(identifier: string, type: 'email' | 'phone' | 'abn'): string {
+    switch (type) {
+      case 'phone':
+        // Format Australian phone number
+        const cleanPhone = identifier.replace(/\D/g, '');
+        if (cleanPhone.startsWith('61')) {
+          return `+${cleanPhone.slice(0, 2)} ${cleanPhone.slice(2, 3)} ${cleanPhone.slice(3, 7)} ${cleanPhone.slice(7)}`;
+        } else if (cleanPhone.startsWith('0')) {
+          return `${cleanPhone.slice(0, 4)} ${cleanPhone.slice(4, 7)} ${cleanPhone.slice(7)}`;
+        }
+        return identifier;
 
-    if (error) throw error;
+      case 'abn':
+        // Format ABN with spaces
+        const cleanABN = identifier.replace(/\D/g, '');
+        if (cleanABN.length === 11) {
+          return `${cleanABN.slice(0, 2)} ${cleanABN.slice(2, 5)} ${cleanABN.slice(5, 8)} ${cleanABN.slice(8)}`;
+        }
+        return identifier;
 
-    // Get total count
-    const { count } = await supabase
-      .from('payment_transactions')
-      .select('id', { count: 'exact', head: true })
-      .or(`payer_id.eq.${userId},recipient_id.eq.${userId}`);
-
-    return {
-      payments: payments || [],
-      total: count || 0
-    };
-
-  } catch (error) {
-    console.error('Error getting payment history:', error);
-    return { payments: [], total: 0 };
+      case 'email':
+      default:
+        return identifier;
+    }
   }
-}
 
-/**
- * Generate payment instructions for PayID
- */
-export function generatePaymentInstructions(
-  payidIdentifier: string,
-  amount: number,
-  reference: string,
-  accountName?: string
-): string {
-  return `
+  /**
+   * Calculate PayID transaction fees (for display purposes)
+   */
+  calculateFees(amount: number): { fee: number; net: number } {
+    // PayID transactions are typically free for consumers
+    // This is for display/estimation purposes only
+    const fee = 0;
+    const net = amount - fee;
+
+    return { fee, net };
+  }
+
+  /**
+   * Get transaction status color for UI
+   */
+  getTransactionStatusColor(status: string): string {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-50 border-green-200';
+      case 'pending':
+      case 'processing':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'failed':
+      case 'cancelled':
+        return 'text-red-600 bg-red-50 border-red-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  }
+
+  /**
+   * Get available Australian banks for PayID
+   */
+  getAvailableBanks(): Array<{ name: string; code: string; bsb_prefix: string }> {
+    return Object.entries(this.BANK_NETWORKS).map(([name, config]) => ({
+      name,
+      code: config.name,
+      bsb_prefix: config.bsb_prefix,
+    }));
+  }
+
+  /**
+   * Generate payment instructions for PayID
+   */
+  generatePaymentInstructions(
+    payidIdentifier: string,
+    amount: number,
+    reference: string,
+    accountName?: string
+  ): string {
+    return `
 Payment Instructions:
 
 1. Open your banking app or online banking
@@ -396,32 +377,35 @@ ${accountName ? `4. Verify account name: ${accountName}` : '4. Verify the accoun
 
 Your booking will be confirmed once payment is received.
 `.trim();
+  }
+
+  /**
+   * Format currency amount
+   */
+  formatCurrency(amount: number, currency: string = 'AUD'): string {
+    return new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  }
 }
 
-// Helper functions
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
+// Singleton instance
+export const payidService = new PayIDService();
 
-function isValidMobileNumber(mobile: string): boolean {
-  // Australian mobile number format
-  const mobileRegex = /^(\+61|0)[0-9]{9}$/;
-  return mobileRegex.test(mobile.replace(/\s/g, ''));
-}
+// Legacy compatibility exports
+export const createPayIDAccount = payidService.setupPayIDAccount.bind(payidService);
+export const validatePayID = async (identifier: string) => {
+  if (payidService.validatePayIDFormat(identifier, 'email') ||
+      payidService.validatePayIDFormat(identifier, 'phone')) {
+    return { isValid: true, accountName: 'Mock Account', bankName: 'Mock Bank' };
+  }
+  return { isValid: false, error: 'Invalid PayID format' };
+};
+export const formatCurrency = payidService.formatCurrency.bind(payidService);
 
 /**
- * Format currency amount
- */
-export function formatCurrency(amount: number, currency: string = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: currency
-  }).format(amount);
-}
-
-/**
- * Calculate payment fees
+ * Calculate payment fees (legacy compatibility)
  */
 export function calculatePaymentFees(amount: number, method: string = 'payid'): {
   feeAmount: number;
@@ -432,7 +416,7 @@ export function calculatePaymentFees(amount: number, method: string = 'payid'): 
 
   switch (method) {
     case 'payid':
-      feePercentage = 0.025; // 2.5%
+      feePercentage = 0; // PayID is typically free
       break;
     case 'credit_card':
       feePercentage = 0.029; // 2.9%
@@ -441,7 +425,7 @@ export function calculatePaymentFees(amount: number, method: string = 'payid'): 
       feePercentage = 0.01; // 1.0%
       break;
     default:
-      feePercentage = 0.025;
+      feePercentage = 0;
   }
 
   const feeAmount = Math.round(amount * feePercentage * 100) / 100;

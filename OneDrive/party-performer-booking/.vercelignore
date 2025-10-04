@@ -1,0 +1,10 @@
+supabase/
+.env.example
+README.md
+*.sql
+*.py
+placeholder_light_gray_block.png
+pptx_to_img.py
+slides_template.js
+answer.js
+create_montage.py

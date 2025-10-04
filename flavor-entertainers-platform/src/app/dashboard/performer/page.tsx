@@ -223,7 +223,7 @@ export default function PerformerDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
@@ -234,9 +234,9 @@ export default function PerformerDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">
-            Welcome back, <span className="brand-gradient-text">{performer?.stage_name}</span>
+            Welcome back, <span className="text-shimmer">{performer?.stage_name}</span>
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-zinc-400 mt-1">
             Here's what's happening with your performance career
           </p>
         </div>
@@ -244,7 +244,7 @@ export default function PerformerDashboard() {
           onClick={fetchDashboardData}
           variant="outline"
           size="sm"
-          className="border-gray-600 text-gray-300 hover:bg-gray-800"
+          className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
@@ -253,58 +253,66 @@ export default function PerformerDashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gray-800/50 border-gray-700 backdrop-blur">
+        <Card className="card-premium card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Total Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-gray-400" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Total Bookings</CardTitle>
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-white" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats?.totalBookings || 0}</div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-orange-400">
               {stats?.upcomingBookings || 0} upcoming
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800/50 border-gray-700 backdrop-blur">
+        <Card className="card-premium card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Monthly Earnings</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-400" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Monthly Earnings</CardTitle>
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+              <DollarSign className="h-4 w-4 text-white" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
               {formatCurrency(stats?.monthlyEarnings || 0)}
             </div>
-            <div className="text-xs text-green-400">
+            <div className="text-xs text-orange-400">
               <TrendingUp className="h-3 w-3 inline mr-1" />
               Total: {formatCurrency(stats?.totalEarnings || 0)}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800/50 border-gray-700 backdrop-blur">
+        <Card className="card-premium card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Average Rating</CardTitle>
-            <Star className="h-4 w-4 text-yellow-400" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Average Rating</CardTitle>
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+              <Star className="h-4 w-4 text-white" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
               {stats?.averageRating?.toFixed(1) || '0.0'}
             </div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-orange-400">
               {stats?.totalReviews || 0} reviews
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800/50 border-gray-700 backdrop-blur">
+        <Card className="card-premium card-hover">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Profile Views</CardTitle>
-            <Eye className="h-4 w-4 text-blue-400" />
+            <CardTitle className="text-sm font-medium text-zinc-300">Profile Views</CardTitle>
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+              <Eye className="h-4 w-4 text-white" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">{stats?.profileViews || 0}</div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-orange-400">
               {stats?.responseRate || 0}% response rate
             </div>
           </CardContent>
@@ -313,7 +321,7 @@ export default function PerformerDashboard() {
 
       {/* Safety Alerts */}
       {safetyAlerts.length > 0 && (
-        <Card className="bg-red-900/20 border-red-700/50 backdrop-blur">
+        <Card className="card-premium bg-red-900/20 border-red-700/50">
           <CardHeader>
             <CardTitle className="text-red-300 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
@@ -357,10 +365,10 @@ export default function PerformerDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Bookings */}
-        <Card className="bg-gray-800/50 border-gray-700 backdrop-blur">
+        <Card className="card-premium card-hover">
           <CardHeader>
             <CardTitle className="text-white">Recent Bookings</CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-zinc-400">
               Your latest booking activity
             </CardDescription>
           </CardHeader>
@@ -368,7 +376,7 @@ export default function PerformerDashboard() {
             <div className="space-y-4">
               {recentBookings.length > 0 ? (
                 recentBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30">
+                  <div key={booking.id} className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/30 border border-zinc-700/50">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-medium text-white">{booking.booking_reference}</h4>
@@ -376,14 +384,14 @@ export default function PerformerDashboard() {
                           {booking.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-400">{booking.event_type}</p>
-                      <p className="text-xs text-gray-500">{booking.client_name}</p>
+                      <p className="text-sm text-zinc-400">{booking.event_type}</p>
+                      <p className="text-xs text-zinc-500">{booking.client_name}</p>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium text-white">
                         {formatCurrency(booking.total_amount)}
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-zinc-400">
                         {formatDate(booking.event_date)}
                       </div>
                     </div>
@@ -391,9 +399,9 @@ export default function PerformerDashboard() {
                 ))
               ) : (
                 <div className="text-center py-6">
-                  <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                  <p className="text-gray-400">No bookings yet</p>
-                  <p className="text-sm text-gray-500">Your bookings will appear here</p>
+                  <Calendar className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                  <p className="text-zinc-400">No bookings yet</p>
+                  <p className="text-sm text-zinc-500">Your bookings will appear here</p>
                 </div>
               )}
             </div>
@@ -402,7 +410,7 @@ export default function PerformerDashboard() {
                 onClick={() => window.location.href = '/dashboard/performer/bookings'}
                 variant="outline"
                 size="sm"
-                className="w-full border-gray-600 text-gray-300 hover:bg-gray-800"
+                className="w-full border-zinc-600 text-zinc-300 hover:bg-zinc-800"
               >
                 View All Bookings
               </Button>
@@ -411,10 +419,10 @@ export default function PerformerDashboard() {
         </Card>
 
         {/* Quick Actions */}
-        <Card className="bg-gray-800/50 border-gray-700 backdrop-blur">
+        <Card className="card-premium card-hover">
           <CardHeader>
             <CardTitle className="text-white">Quick Actions</CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-zinc-400">
               Frequently used features
             </CardDescription>
           </CardHeader>
@@ -422,7 +430,7 @@ export default function PerformerDashboard() {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 onClick={() => window.location.href = '/dashboard/performer/availability'}
-                className="h-20 flex flex-col items-center justify-center bg-blue-900/20 border border-blue-700/50 text-blue-300 hover:bg-blue-900/30"
+                className="h-20 flex flex-col items-center justify-center bg-orange-900/20 border border-orange-700/50 text-orange-300 hover:bg-orange-900/30 orange-glow"
               >
                 <Clock className="w-6 h-6 mb-2" />
                 <span className="text-sm">Set Availability</span>
@@ -430,7 +438,7 @@ export default function PerformerDashboard() {
 
               <Button
                 onClick={() => window.location.href = '/dashboard/performer/profile'}
-                className="h-20 flex flex-col items-center justify-center bg-purple-900/20 border border-purple-700/50 text-purple-300 hover:bg-purple-900/30"
+                className="h-20 flex flex-col items-center justify-center bg-orange-900/20 border border-orange-700/50 text-orange-300 hover:bg-orange-900/30 orange-glow"
               >
                 <Users className="w-6 h-6 mb-2" />
                 <span className="text-sm">Edit Profile</span>

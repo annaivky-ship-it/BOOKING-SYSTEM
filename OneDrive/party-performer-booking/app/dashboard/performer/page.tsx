@@ -147,7 +147,7 @@ export default function PerformerDashboard() {
               {referrals.map((r) => (
                 <tr key={r.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <td style={{ padding: '0.5rem' }}>{r.id}</td>
-                  <td style={{ padding: '0.5rem' }}>${r.override_fee || r.fee}</td>
+                  <td style={{ padding: '0.5rem' }}>${r.fee}</td>
                   <td style={{ padding: '0.5rem' }}>{r.status}</td>
                 </tr>
               ))}
