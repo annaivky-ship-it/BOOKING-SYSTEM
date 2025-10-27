@@ -338,15 +338,13 @@ export default function PerformerDashboard({ user }: PerformerDashboardProps) {
                   <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm">
                     <div>
                       <div className="text-gray-400 mb-1">Event Details</div>
-                      <div><strong>Type:</strong> {booking.event_type}</div>
-                      <div><strong>Name:</strong> {booking.event_name}</div>
-                      <div><strong>Duration:</strong> {booking.duration_hours} hours</div>
+                      <div><strong>Type:</strong> {booking.event_type || 'Not specified'}</div>
+                      <div><strong>Time:</strong> {booking.event_start_time} - {booking.event_end_time}</div>
                     </div>
                     <div>
                       <div className="text-gray-400 mb-1">Date & Time</div>
                       <div><strong>Date:</strong> {new Date(booking.event_date).toLocaleDateString('en-AU')}</div>
-                      <div><strong>Time:</strong> {booking.event_time}</div>
-                      <div><strong>Location:</strong> {booking.location}</div>
+                      <div><strong>Location:</strong> {booking.event_location}</div>
                     </div>
                   </div>
 
