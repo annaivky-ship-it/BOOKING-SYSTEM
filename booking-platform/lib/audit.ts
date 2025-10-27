@@ -31,12 +31,12 @@ export async function logAction(input: CreateAuditLogInput): Promise<void> {
  * Helper to get IP and user agent from Next.js request
  */
 export function getRequestMetadata(headers: Headers): {
-  ip_address: string | null;
-  user_agent: string | null;
+  ip_address: string | undefined;
+  user_agent: string | undefined;
 } {
   return {
-    ip_address: headers.get('x-forwarded-for') || headers.get('x-real-ip') || null,
-    user_agent: headers.get('user-agent') || null,
+    ip_address: headers.get('x-forwarded-for') || headers.get('x-real-ip') || undefined,
+    user_agent: headers.get('user-agent') || undefined,
   };
 }
 
