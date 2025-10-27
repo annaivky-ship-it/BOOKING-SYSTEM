@@ -265,13 +265,13 @@ export default function ClientDashboard({ user }: ClientDashboardProps) {
                       </div>
                       <div className="text-sm text-gray-400 space-y-1">
                         <div>
-                          <strong>Event:</strong> {booking.event_type} - {booking.event_name}
+                          <strong>Event:</strong> {booking.event_type || 'Not specified'}
                         </div>
                         <div>
-                          <strong>Date:</strong> {new Date(booking.event_date).toLocaleDateString('en-AU')} at {booking.event_time}
+                          <strong>Date:</strong> {new Date(booking.event_date).toLocaleDateString('en-AU')} at {booking.event_start_time}
                         </div>
                         <div>
-                          <strong>Duration:</strong> {booking.duration_hours} hours
+                          <strong>Time:</strong> {booking.event_start_time} - {booking.event_end_time}
                         </div>
                         {booking.performer_eta && (
                           <div className="text-green-400">
