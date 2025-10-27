@@ -1,0 +1,22 @@
+@echo off
+cd /d C:\Users\annai\booking-platform
+
+echo Adding environment variables to Vercel...
+
+vercel env add NEXT_PUBLIC_SUPABASE_URL production
+echo https://qmedckkwtgkhrdihqrnd.supabase.co
+
+vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
+echo eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtZWRja2t3dGdraHJkaWhxcm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzOTYwMDMsImV4cCI6MjA3Njk3MjAwM30.gDQzp-NY6VTlsfmwNpqhnJQmkRz8gWBL-czTCswcIUw
+
+vercel env add SUPABASE_SERVICE_ROLE_KEY production
+echo eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtZWRja2t3dGdraHJkaWhxcm5kIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTM5NjAwMywiZXhwIjoyMDc2OTcyMDAzfQ.bICh_5HpSnaAnoCf5BYwe4hU3bRqycaH5WJvzFUqAl8
+
+vercel env add ENCRYPTION_KEY production
+echo P2WSchMxD7Ehr1D0qEKk5C7fwK/gYvKb
+
+vercel env add TZ production
+echo Australia/Perth
+
+echo Done! Environment variables added.
+pause

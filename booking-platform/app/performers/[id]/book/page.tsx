@@ -7,8 +7,9 @@ import { ArrowLeft } from 'lucide-react';
 export default async function BookPerformerPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Get current user
@@ -35,7 +36,7 @@ export default async function BookPerformerPage({
   const { data: performer } = await supabase
     .from('users')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('role', 'performer')
     .single();
 
