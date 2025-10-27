@@ -1,5 +1,5 @@
 import { type ClassValue, clsx } from 'clsx';
-import { format, toZonedTime } from 'date-fns-tz';
+import { format, utcToZonedTime } from 'date-fns-tz';
 
 /**
  * Merge Tailwind classes safely
@@ -14,7 +14,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDateAU(date: Date | string, formatStr: string = 'PPpp'): string {
   const timezone = 'Australia/Perth';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const zonedDate = toZonedTime(dateObj, timezone);
+  const zonedDate = utcToZonedTime(dateObj, timezone);
   return format(zonedDate, formatStr, { timeZone: timezone });
 }
 
