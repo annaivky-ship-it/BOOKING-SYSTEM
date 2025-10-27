@@ -1,0 +1,152 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { submitETASchema } from '@/lib/validators';
+import { logAction, AuditActions, getRequestMetadata } from '@/lib/audit';
+import { notifyClientETA, notifyAdminETA } from '@/lib/whatsapp';
+import { formatPhoneForWhatsApp } from '@/lib/utils';
+
+/**
+ * POST /api/bookings/[id]/eta
+ * Performer submits ETA for a booking
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: bookingId } = await params;
+    const supabase = await createClient();
+    const serviceClient = createServiceClient();
+
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.role !== 'performer') {
+      return NextResponse.json({ error: 'Only performers can submit ETA' }, { status: 403 });
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validationResult = submitETASchema.safeParse({
+      booking_id: bookingId,
+      eta: body.eta,
+    });
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: validationResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const data = validationResult.data;
+
+    // Get booking with client details
+    const { data: booking, error: bookingError } = await serviceClient
+      .from('bookings')
+      .select(`
+        *,
+        client:users!client_id(*)
+      `)
+      .eq('id', bookingId)
+      .eq('performer_id', user.id)
+      .single();
+
+    if (bookingError || !booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    // Check if booking is accepted
+    if (booking.status !== 'accepted') {
+      return NextResponse.json(
+        { error: 'Can only submit ETA for accepted bookings' },
+        { status: 400 }
+      );
+    }
+
+    // Update booking with ETA
+    const { data: updatedBooking, error: updateError } = await serviceClient
+      .from('bookings')
+      .update({
+        performer_eta: data.eta,
+        eta_sent_at: new Date().toISOString(),
+        eta_sent_to_client: true,
+        eta_sent_to_admin: true,
+      })
+      .eq('id', bookingId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Booking ETA update error:', updateError);
+      return NextResponse.json({ error: 'Failed to submit ETA' }, { status: 500 });
+    }
+
+    // Log the action
+    const metadata = getRequestMetadata(request.headers);
+    await logAction({
+      user_id: user.id,
+      action: AuditActions.ETA_SUBMITTED,
+      resource_type: 'booking',
+      resource_id: bookingId,
+      details: {
+        booking_number: booking.booking_number,
+        eta: data.eta,
+      },
+      ...metadata,
+    });
+
+    // Send WhatsApp notifications
+    const notificationErrors: string[] = [];
+
+    // Notify client
+    if (booking.client && booking.client.phone) {
+      try {
+        const clientPhone = formatPhoneForWhatsApp(booking.client.phone);
+        await notifyClientETA(
+          clientPhone,
+          booking.booking_number,
+          profile.full_name,
+          data.eta
+        );
+      } catch (error) {
+        console.error('Failed to send client WhatsApp notification:', error);
+        notificationErrors.push('client');
+      }
+    }
+
+    // Notify admin
+    try {
+      await notifyAdminETA(booking.booking_number, profile.full_name, data.eta);
+    } catch (error) {
+      console.error('Failed to send admin WhatsApp notification:', error);
+      notificationErrors.push('admin');
+    }
+
+    return NextResponse.json({
+      booking: updatedBooking,
+      notifications: {
+        sent: notificationErrors.length === 0,
+        failed: notificationErrors,
+      },
+    });
+  } catch (error) {
+    console.error('ETA submission exception:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
