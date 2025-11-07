@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update booking based on verification status
-    const updates: any = {
+    const updates: Record<string, string> = {
       payment_status: data.status,
       payment_verified_at: new Date().toISOString(),
       payment_verified_by: user.id,

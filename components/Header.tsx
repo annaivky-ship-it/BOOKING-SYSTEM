@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import type { Role, Communication, Profile, Performer } from '../types';
 import { Bell, Inbox, CheckCheck, Video, Settings, Search, LogIn, LogOut, LayoutDashboard, Users, UserCog, Shield, ChevronDown, PlayCircle } from 'lucide-react';
 import type { Session } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
@@ -124,14 +125,14 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
     <header className="bg-black/30 backdrop-blur-lg sticky top-0 z-50 border-b border-zinc-800">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          <a href="/" className="flex flex-col items-start cursor-pointer no-underline group" data-tour-id="header-logo">
+          <Link href="/" className="flex flex-col items-start cursor-pointer no-underline group" data-tour-id="header-logo">
             <div className="flex items-center">
                 <span className="font-logo-main text-3xl tracking-wider text-white group-hover:text-orange-400 transition-colors duration-300">FLAV</span>
                 <span className="text-3xl mx-[-0.15em] relative transform group-hover:scale-110 transition-transform duration-300" style={{top: "-0.05em"}}>🍑</span>
                 <span className="font-logo-main text-3xl tracking-wider text-white group-hover:text-orange-400 transition-colors duration-300">R</span>
             </div>
             <span className="font-logo-sub text-base text-zinc-500 -mt-1 ml-1 tracking-wide group-hover:text-zinc-300 transition-colors duration-300">entertainers</span>
-          </a>
+          </Link>
           <nav className="flex items-center gap-2">
              <div className="relative hidden md:block mr-2">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />

@@ -321,8 +321,8 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             } else {
                 throw new Error(result.message);
             }
-        } catch(err: any) {
-            setError(err.message || 'An unexpected error occurred during submission.');
+        } catch(err) {
+            setError(err instanceof Error ? err.message : 'An unexpected error occurred during submission.');
             setCurrentStep(1);
         } finally {
             setIsSubmitting(false);

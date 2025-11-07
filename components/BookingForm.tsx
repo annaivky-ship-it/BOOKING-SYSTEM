@@ -108,8 +108,8 @@ export default function BookingForm({ performer, client }: BookingFormProps) {
       alert(`Booking created successfully! Booking #${booking.booking_number}`);
       router.push('/dashboard');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Failed to create booking');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create booking');
     } finally {
       setLoading(false);
     }

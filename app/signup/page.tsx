@@ -53,9 +53,9 @@ export default function SignupPage() {
       // Redirect based on role
       router.push('/dashboard');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up');
-    } finally {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sign up');
+    } finally{
       setLoading(false);
     }
   }
