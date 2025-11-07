@@ -26,7 +26,7 @@ import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotSer
 import { allServices } from './data/mockData';
 import { PAY_ID_EMAIL } from './constants';
 import { calculateBookingCost } from './utils/bookingUtils';
-import type { Session } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
+import type { Session } from '@supabase/supabase-js';
 
 type GalleryView = 'available_now' | 'future_bookings';
 // FIX: Added 'calendar_view' to the main view state type to align with its usage in the component.
