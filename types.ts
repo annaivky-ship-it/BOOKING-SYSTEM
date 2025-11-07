@@ -1,3 +1,21 @@
+// Import the auto-generated database types
+import { Database } from './database.types';
+
+// Re-export Database type for Supabase client usage
+export type { Database };
+
+// Convenience type exports from generated database types
+export type DbBooking = Database['public']['Tables']['bookings']['Row'];
+export type DbPerformer = Database['public']['Tables']['performers']['Row'];
+export type DbService = Database['public']['Tables']['services']['Row'];
+export type DbCommunication = Database['public']['Tables']['communications']['Row'];
+export type DbDoNotServeEntry = Database['public']['Tables']['do_not_serve_entries']['Row'];
+export type DbProfile = Database['public']['Tables']['profiles']['Row'];
+export type DbPayment = Database['public']['Tables']['payments']['Row'];
+export type DbPaymentReminder = Database['public']['Tables']['payment_reminders']['Row'];
+export type DbPerformerGallery = Database['public']['Tables']['performer_gallery']['Row'];
+
+// Application-specific types and enums
 export type PerformerStatus = 'available' | 'busy' | 'offline';
 export type Role = 'user' | 'performer' | 'admin';
 
@@ -11,6 +29,19 @@ export type BookingStatus =
 
 export type DoNotServeStatus = 'pending' | 'approved' | 'rejected';
 
+export type PaymentStatus = 
+  | 'pending'
+  | 'deposit_paid'
+  | 'fully_paid'
+  | 'expired'
+  | 'refunded'
+  | 'cancelled';
+
+export type PaymentMethod = 'payid' | 'bank_transfer' | 'cash' | 'card';
+
+export type PhotoType = 'profile' | 'gallery' | 'event' | 'promo';
+
+// Enhanced application interfaces with computed fields
 export interface Service {
   id: string;
   category: 'Waitressing' | 'Strip Show' | 'Promotional & Hosting';
@@ -23,74 +54,56 @@ export interface Service {
   booking_notes?: string;
 }
 
-export interface Performer {
-  id: number;
-  name:string;
-  tagline: string;
-  photo_url: string; // matches Supabase column
-  bio: string;
-  service_ids: string[];
+export interface Performer extends DbPerformer {
+  // Adding type refinements for UI usage
   status: PerformerStatus;
-  created_at: string;
+  service_ids: string[];
+  email?: string | null;
+  phone?: string | null;
+  instagram?: string | null;
 }
 
-export interface Booking {
-    id: string; // UUID
-    performer_id: number;
-    client_name: string;
-    client_email: string;
-    client_phone: string;
-    event_date: string;
-    event_time: string;
-    event_address: string;
-    event_type: string;
-    status: BookingStatus;
-    id_document_path: string | null;
-    deposit_receipt_path: string | null;
-    created_at: string;
-    duration_hours: number;
-    number_of_guests: number;
-    services_requested: string[]; // These will be service IDs
-    verified_by_admin_name: string | null;
-    verified_at: string | null;
-    client_message?: string | null;
-    performer_reassigned_from_id?: number | null;
-    performer_eta_minutes?: number | null;
-    // This is from the join
-    performer?: {
-        id: number;
-        name: string;
-    }
-    referral_fee_amount?: number | null;
-    referral_fee_paid?: boolean;
-    referral_fee_receipt_path?: string | null;
-}
-
-export interface DoNotServeEntry {
-  id: string; // UUID
-  client_name: string;
-  client_email: string;
-  client_phone: string;
-  reason: string;
-  status: DoNotServeStatus;
-  submitted_by_performer_id: number;
-  created_at: string;
+export interface Booking extends Omit<DbBooking, 'performer'> {
+  // Enhanced with relationship data
   performer?: {
-      name: string;
-  }
+    id: number;
+    name: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
-export interface Communication {
-  id: string;
-  sender: 'System' | Performer['name'] | 'Admin';
-  recipient: Role | number; // 'user', 'admin', or performer_id
-  message: string;
-  created_at: string;
-  read: boolean;
-  booking_id?: string;
-  type?: 'booking_update' | 'booking_confirmation' | 'admin_message' | 'system_alert';
+export interface Payment extends DbPayment {
+  // Enhanced payment interface with type refinements
+  status: PaymentStatus;
+  payment_method?: PaymentMethod | null;
 }
 
+export interface PaymentReminder extends DbPaymentReminder {
+  reminder_type: 'initial' | '24h' | '12h' | '6h' | 'final';
+  sms_status?: 'queued' | 'sent' | 'delivered' | 'failed' | null;
+}
+
+export interface PerformerGallery extends DbPerformerGallery {
+  photo_type?: PhotoType | null;
+}
+
+export interface DoNotServeEntry extends DbDoNotServeEntry {
+  status: DoNotServeStatus;
+  performer?: {
+    name: string;
+  };
+}
+
+export interface Communication extends DbCommunication {
+  type?: 'booking_update' | 'booking_confirmation' | 'admin_message' | 'system_alert' | null;
+}
+
+export interface Profile extends DbProfile {
+  role: Role;
+}
+
+// UI-specific types
 export interface PhoneMessageAction {
   label: string;
   onClick: () => void;
@@ -103,16 +116,38 @@ export type PhoneMessage = {
   actions?: PhoneMessageAction[];
 } | null;
 
-export interface Profile {
-  id: string; // Supabase user UUID
-  role: Role;
-  performer_id?: number | null; // Link to the performer entry if role is 'performer'
-}
-
 export interface WalkthroughStep {
   elementSelector: string;
   title: string;
   content: string;
   before?: () => void | Promise<void>;
   position?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+// Payment-related helper types
+export interface OverduePayment {
+  payment_id: string;
+  booking_id: string;
+  client_name: string;
+  client_phone: string;
+  deposit_amount: number;
+  payid_email: string;
+  payment_reference: string;
+  hours_overdue: number;
+}
+
+export interface GalleryPhoto {
+  id: string;
+  photo_url: string;
+  photo_type: PhotoType;
+  caption: string;
+  display_order: number;
+  is_featured?: boolean;
+  uploaded_at?: string;
+}
+
+export interface GalleryStats {
+  total_photos: number;
+  featured_photos: number;
+  photo_types: Record<string, number>;
 }

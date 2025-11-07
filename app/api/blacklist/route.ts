@@ -1,0 +1,236 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { addToBlacklistSchema, removeFromBlacklistSchema } from '@/lib/validators';
+import { logAction, AuditActions, getRequestMetadata } from '@/lib/audit';
+
+/**
+ * GET /api/blacklist
+ * Get all blacklisted entries (admin only)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can view blacklist' }, { status: 403 });
+    }
+
+    // Get blacklist entries
+    const { data: blacklist, error: blacklistError } = await supabase
+      .from('blacklist')
+      .select(`
+        *,
+        added_by_user:users!added_by(*)
+      `)
+      .order('added_at', { ascending: false });
+
+    if (blacklistError) {
+      console.error('Blacklist fetch error:', blacklistError);
+      return NextResponse.json({ error: 'Failed to fetch blacklist' }, { status: 500 });
+    }
+
+    return NextResponse.json({ blacklist });
+  } catch (error) {
+    console.error('Blacklist fetch exception:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/blacklist
+ * Add entry to blacklist (admin only)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const serviceClient = createServiceClient();
+
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can add to blacklist' }, { status: 403 });
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validationResult = addToBlacklistSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: validationResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const data = validationResult.data;
+
+    // Check if entry already exists
+    const { data: existing, error: existingError } = await serviceClient
+      .from('blacklist')
+      .select('id')
+      .or(`email.eq.${data.email || 'null'},phone.eq.${data.phone || 'null'}`)
+      .single();
+
+    if (existing) {
+      return NextResponse.json({ error: 'Entry already in blacklist' }, { status: 400 });
+    }
+
+    // Add to blacklist
+    const { data: blacklistEntry, error: insertError } = await serviceClient
+      .from('blacklist')
+      .insert({
+        email: data.email || null,
+        phone: data.phone || null,
+        reason: data.reason,
+        notes: data.notes || null,
+        added_by: user.id,
+        added_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Blacklist insert error:', insertError);
+      return NextResponse.json({ error: 'Failed to add to blacklist' }, { status: 500 });
+    }
+
+    // Log the action
+    const metadata = getRequestMetadata(request.headers);
+    await logAction({
+      user_id: user.id,
+      action: AuditActions.BLACKLIST_ADDED,
+      resource_type: 'blacklist',
+      resource_id: blacklistEntry.id,
+      details: {
+        email: data.email,
+        phone: data.phone,
+        reason: data.reason,
+      },
+      ...metadata,
+    });
+
+    return NextResponse.json({ blacklist_entry: blacklistEntry });
+  } catch (error) {
+    console.error('Blacklist add exception:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/blacklist
+ * Remove entry from blacklist (admin only)
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const serviceClient = createServiceClient();
+
+    // Get current user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can remove from blacklist' }, { status: 403 });
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validationResult = removeFromBlacklistSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: validationResult.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const data = validationResult.data;
+
+    // Get blacklist entry
+    const { data: entry, error: entryError } = await serviceClient
+      .from('blacklist')
+      .select('*')
+      .eq('id', data.blacklist_id)
+      .single();
+
+    if (entryError || !entry) {
+      return NextResponse.json({ error: 'Blacklist entry not found' }, { status: 404 });
+    }
+
+    // Delete entry
+    const { error: deleteError } = await serviceClient
+      .from('blacklist')
+      .delete()
+      .eq('id', data.blacklist_id);
+
+    if (deleteError) {
+      console.error('Blacklist delete error:', deleteError);
+      return NextResponse.json({ error: 'Failed to remove from blacklist' }, { status: 500 });
+    }
+
+    // Log the action
+    const metadata = getRequestMetadata(request.headers);
+    await logAction({
+      user_id: user.id,
+      action: AuditActions.BLACKLIST_REMOVED,
+      resource_type: 'blacklist',
+      resource_id: data.blacklist_id,
+      details: {
+        email: entry.email,
+        phone: entry.phone,
+      },
+      ...metadata,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Blacklist remove exception:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
