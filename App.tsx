@@ -248,7 +248,7 @@ const App: React.FC = () => {
     try {
         const { error } = await api.updatePerformerStatus(performerId, status);
         if (error) throw error;
-        addCommunication({ sender: 'System', recipient: 'admin', message: `${performerName}'s status changed to ${status}.`, type: 'admin_message' });
+        addCommunication({ sender: 'System', recipient: 'admin', message: `${performerName}'s status changed to ${status}.`, type: 'admin_message', booking_id: null });
     } catch (err) {
         console.error("Failed to update status:", err);
         setPerformers(originalPerformers); // Revert
@@ -309,20 +309,21 @@ const App: React.FC = () => {
       }
 
       if (status === 'confirmed') {
-        addCommunication({ sender: 'System', recipient: booking.performer_id, message: `🎉 BOOKING CONFIRMED! The deposit for your event with ${booking.client_name} on ${new Date(booking.event_date).toLocaleDateString()} is paid. Client Address: ${booking.event_address}. Phone: ${booking.client_phone}.`, booking_id: bookingId, type: 'booking_confirmation' });
+        addCommunication({ sender: 'System', recipient: String(booking.performer_id), message: `🎉 BOOKING CONFIRMED! The deposit for your event with ${booking.client_name} on ${new Date(booking.event_date).toLocaleDateString()} is paid. Client Address: ${booking.event_address}. Phone: ${booking.client_phone}.`, booking_id: bookingId, type: 'booking_confirmation' });
       } else {
         const performerMessage = {
             deposit_pending: `✅ Booking Vetted! The application from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} has been approved. Awaiting deposit.`,
             rejected: `❗️ Booking Rejected: The application from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} has been rejected.`,
         }[status as 'deposit_pending' | 'rejected'];
-        if(performerMessage) addCommunication({ sender: 'System', recipient: booking.performer_id, message: performerMessage, booking_id: bookingId, type: 'booking_update' });
+        if(performerMessage) addCommunication({ sender: 'System', recipient: String(booking.performer_id), message: performerMessage, booking_id: bookingId, type: 'booking_update' });
       }
 
       const adminMessage = {
           pending_deposit_confirmation: `🧾 Client for booking #${bookingId.slice(0, 8)} (${booking.client_name}) has confirmed deposit payment. Please verify.`,
+          deposit_pending: `✅ Booking Vetted for ${booking.client_name} with ${booking.performer?.name}. Awaiting deposit.`,
           confirmed: `✅ Booking Confirmed for ${booking.client_name} with ${booking.performer?.name}.`,
           rejected: `❌ Booking Rejected for ${booking.client_name} with ${booking.performer?.name}.`,
-      }[status];
+      }[status as 'pending_deposit_confirmation' | 'deposit_pending' | 'confirmed' | 'rejected'];
       if (adminMessage) addCommunication({ sender: 'System', recipient: 'admin', message: adminMessage, booking_id: bookingId, type: 'admin_message' });
 
     } catch (err) {
@@ -344,9 +345,9 @@ const App: React.FC = () => {
         const { error } = await api.updateDoNotServeStatus(entryId, status);
         if (error) throw error;
         const message = `The 'Do Not Serve' submission for '${entry.client_name}' submitted by ${entry.performer?.name} has been ${status}.`;
-        addCommunication({ sender: 'System', recipient: 'admin', message, type: 'admin_message' });
+        addCommunication({ sender: 'System', recipient: 'admin', message, type: 'admin_message', booking_id: null });
         if (entry.submitted_by_performer_id !== 0) {
-           addCommunication({ sender: 'System', recipient: entry.submitted_by_performer_id, message, type: 'admin_message' });
+           addCommunication({ sender: 'System', recipient: String(entry.submitted_by_performer_id), message, type: 'admin_message', booking_id: null });
         }
       } catch (err) {
         console.error("Failed to update DNS entry:", err);
@@ -360,7 +361,7 @@ const App: React.FC = () => {
         const { data, error } = await api.createDoNotServeEntry(newEntryData);
         if (error) throw error;
         setDoNotServeList(prev => [data![0], ...prev]);
-        addCommunication({ sender: submitterName, recipient: 'admin', message: `New 'Do Not Serve' entry submitted by ${submitterName} for review against "${newEntryData.client_name}".`, type: 'admin_message' })
+        addCommunication({ sender: submitterName, recipient: 'admin', message: `New 'Do Not Serve' entry submitted by ${submitterName} for review against "${newEntryData.client_name}".`, type: 'admin_message', booking_id: null })
       } catch(err) {
           console.error("Failed to create DNS entry:", err);
           setError("Could not create 'Do Not Serve' entry.");
@@ -375,7 +376,7 @@ const App: React.FC = () => {
       
       if (decision === 'declined') {
         await handleUpdateBookingStatus(bookingId, 'rejected');
-        addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has DECLINED the booking request from ${booking.client_name}.`, type: 'admin_message' });
+        addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has DECLINED the booking request from ${booking.client_name}.`, type: 'admin_message', booking_id: null });
         addCommunication({ sender: 'System', recipient: 'user', message: `We're sorry, ${performerName} is unable to accept your booking request at this time. Please try booking another performer.`, booking_id: booking.id, type: 'booking_update' });
         return;
       }
@@ -401,11 +402,11 @@ const App: React.FC = () => {
         const etaMessagePartUser = eta && eta > 0 ? ` Her ETA is ~${eta} minutes.` : '';
 
         if (isVerifiedBooker) {
-          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking from verified client ${booking.client_name}${etaMessagePartAdmin}. It has automatically skipped vetting and is awaiting deposit.`, type: 'admin_message' });
+          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking from verified client ${booking.client_name}${etaMessagePartAdmin}. It has automatically skipped vetting and is awaiting deposit.`, type: 'admin_message', booking_id: null });
           addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} As a verified client, you can now proceed to payment.`, booking_id: booking.id, type: 'booking_update' });
           handleUpdateBookingStatus(bookingId, 'deposit_pending'); // Trigger notifications for this status
         } else {
-          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking request from ${booking.client_name}${etaMessagePartAdmin}. It is now pending your vetting.`, type: 'admin_message' });
+          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking request from ${booking.client_name}${etaMessagePartAdmin}. It is now pending your vetting.`, type: 'admin_message', booking_id: null });
           addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} Your booking is now with our admin team for final review.`, booking_id: booking.id, type: 'booking_update' });
           showPhoneMessage({ for: 'Client', content: <p>✅ <strong>Performer Accepted!</strong><br /><strong>{performerName}</strong> has accepted your request! Your booking is now with our admin team for a final review.</p> });
         }
@@ -420,7 +421,7 @@ const App: React.FC = () => {
       const booking = bookings.find(b => b.id === bookingId);
       if(!booking) return;
       
-      addCommunication({ sender: 'Admin', recipient: booking.performer_id, message: `An admin has ${decision} the booking from ${booking.client_name} on your behalf.`, type: 'booking_update' });
+      addCommunication({ sender: 'Admin', recipient: String(booking.performer_id), message: `An admin has ${decision} the booking from ${booking.client_name} on your behalf.`, type: 'booking_update', booking_id: null });
       await handlePerformerBookingDecision(bookingId, decision, undefined);
   }
 
@@ -449,10 +450,10 @@ const App: React.FC = () => {
         const { error } = await api.updateBookingStatus(bookingId, 'pending_performer_acceptance', updates);
         if(error) throw error;
 
-        addCommunication({ sender: 'Admin', recipient: 'admin', message: `Booking for ${booking.client_name} has been reassigned from ${oldPerformerName} to ${newPerformer.name}.`, type: 'admin_message' });
+        addCommunication({ sender: 'Admin', recipient: 'admin', message: `Booking for ${booking.client_name} has been reassigned from ${oldPerformerName} to ${newPerformer.name}.`, type: 'admin_message', booking_id: null });
         addCommunication({ sender: 'Admin', recipient: 'user', message: `An update on your booking: ${newPerformer.name} has now been assigned to your event. We are awaiting their confirmation.`, booking_id: booking.id, type: 'booking_update' });
-        addCommunication({ sender: 'Admin', recipient: oldPerformerId, message: `Your booking for ${booking.client_name} has been reassigned to another performer by an administrator.`, booking_id: booking.id, type: 'booking_update' });
-        addCommunication({ sender: 'Admin', recipient: newPerformerId, message: `You have been newly assigned a booking for ${booking.client_name}. Please review and accept/decline.`, booking_id: booking.id, type: 'booking_update' });
+        addCommunication({ sender: 'Admin', recipient: String(oldPerformerId), message: `Your booking for ${booking.client_name} has been reassigned to another performer by an administrator.`, booking_id: booking.id, type: 'booking_update' });
+        addCommunication({ sender: 'Admin', recipient: String(newPerformerId), message: `You have been newly assigned a booking for ${booking.client_name}. Please review and accept/decline.`, booking_id: booking.id, type: 'booking_update' });
         
         showPhoneMessage({ for: 'Client', content: <p>🔄 <strong>Booking Update</strong><br />An administrator has reassigned your booking. <strong>{newPerformer.name}</strong> is now assigned to your event, pending their confirmation.</p> });
         window.setTimeout(() => showPhoneMessage({ for: 'Performer', content: <p>🆕 <strong>New Assigned Booking!</strong><br />Admin has assigned you a booking for <strong>{booking.client_name}</strong>. Please review and accept/decline in your dashboard.</p> }), 6000);
@@ -501,10 +502,10 @@ const App: React.FC = () => {
         setBookings(prev => [...newBookings!, ...prev]);
 
         const firstBooking = newBookings![0];
-        addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Request Sent! We've notified ${newBookings!.map(b=>b.performer?.name).join(', ')} of your request.`, booking_id: firstBooking.id, type: 'booking_update' });
-        addCommunication({ sender: 'System', recipient: 'admin', message: `📥 New Booking Request: for ${formState.fullName} with ${newBookings!.map(b=>b.performer?.name).join(', ')}. Awaiting performer acceptance.`, type: 'admin_message' });
+        addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Request Sent! We've notified ${newBookings!.map((b: Booking)=>b.performer?.name).join(', ')} of your request.`, booking_id: firstBooking.id, type: 'booking_update' });
+        addCommunication({ sender: 'System', recipient: 'admin', message: `📥 New Booking Request: for ${formState.fullName} with ${newBookings!.map((b: Booking)=>b.performer?.name).join(', ')}. Awaiting performer acceptance.`, type: 'admin_message', booking_id: null });
 
-        showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Request Sent!</strong><br />We've sent your request to <strong>{newBookings!.map(b => b.performer?.name).join(' & ')}</strong>. We'll notify you as soon as they respond!</p> });
+        showPhoneMessage({ for: 'Client', content: <p>🎉 <strong>Request Sent!</strong><br />We've sent your request to <strong>{newBookings!.map((b: Booking) => b.performer?.name).join(' & ')}</strong>. We'll notify you as soon as they respond!</p> });
 
         window.setTimeout(() => {
             const { totalCost, depositAmount } = calculateBookingCost(firstBooking.duration_hours, firstBooking.services_requested, newBookings!.length);
@@ -517,7 +518,7 @@ const App: React.FC = () => {
                 ]
             });
         }, 6000); 
-        return { success: true, message: 'Booking submitted', bookingIds: newBookings!.map(b => b.id) };
+        return { success: true, message: 'Booking submitted', bookingIds: newBookings!.map((b: Booking) => b.id) };
     } catch(err: any) {
         return { success: false, message: err.message || 'An unknown error occurred.' };
     }
@@ -535,7 +536,7 @@ const App: React.FC = () => {
      setCommunications(prev => prev.map(c => {
         const isForAdmin = viewRole === 'admin' && c.recipient === 'admin';
         const isForUser = viewRole === 'user' && c.recipient === 'user';
-        const isForPerformer = viewRole === 'performer' && c.recipient === currentPerformerId;
+        const isForPerformer = viewRole === 'performer' && c.recipient === String(currentPerformerId);
 
         if (isForAdmin || isForUser || isForPerformer) {
             return { ...c, read: true };
@@ -653,7 +654,7 @@ const App: React.FC = () => {
             await api.resetDemoData(); // Reset data for a clean tour
             await fetchData();
             setView('admin_dashboard');
-            setUserProfile({ id: 'admin-uuid', role: 'admin' });
+            setUserProfile({ id: 'admin-uuid', role: 'admin', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), performer_id: null });
         }, position: 'bottom' },
         { elementSelector: '[data-tour-id="admin-stats"]', title: "Business At a Glance", content: "Key metrics give you a real-time overview of total bookings, confirmed events, and critical pending actions.", position: 'bottom' },
         { elementSelector: '[data-tour-id="dns-approve-dns-2"]', title: "Proactive Safety: DNS Vetting", content: "This is our core safety feature. A 'Do Not Serve' submission from a performer lands here. Approving it protects your talent.", before: () => {
