@@ -543,13 +543,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
                  )}
             </div>
         </div>
+        {showAddPerformerModal && (
+          <AddPerformerModal
+            onClose={() => setShowAddPerformerModal(false)}
+            onAddPerformer={handleAddPerformer}
+          />
+        )}
     </div>
-      {showAddPerformerModal && (
-        <AddPerformerModal
-          onClose={() => setShowAddPerformerModal(false)}
-          onAddPerformer={handleAddPerformer}
-        />
-      )}
   );
 };
 
