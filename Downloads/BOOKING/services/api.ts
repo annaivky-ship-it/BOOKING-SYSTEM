@@ -45,7 +45,7 @@ export const api = {
     const [performers, bookings, doNotServeList, communications] = await Promise.all([
       supabase!.from('performers').select('*').order('id'),
       supabase!.from('bookings').select('*, performer:performer_id(id, name)').order('created_at', { ascending: false }),
-      supabase!.from('do_not_serve').select('*, performer:submitted_by_performer_id(name)').order('created_at', { ascending: false }),
+      supabase!.from('do_not_serve_list').select('*, performer:submitted_by_performer_id(name)').order('created_at', { ascending: false }),
       supabase!.from('communications').select('*').order('created_at', { ascending: false }),
     ]);
     
@@ -152,7 +152,7 @@ export const api = {
       }
       return { data: null, error: { message: 'Entry not found' } };
     }
-    return supabase!.from('do_not_serve').update({ status }).eq('id', entryId).select('*, performer:submitted_by_performer_id(name)');
+    return supabase!.from('do_not_serve_list').update({ status }).eq('id', entryId).select('*, performer:submitted_by_performer_id(name)');
   },
 
   async createDoNotServeEntry(newEntry: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status' | 'performer'>): Promise<{ data: DoNotServeEntry[] | null, error: any }> {
@@ -169,7 +169,7 @@ export const api = {
           demoDoNotServeList.unshift(entry);
           return { data: [entry], error: null };
       }
-      return supabase!.from('do_not_serve').insert(newEntry).select('*, performer:submitted_by_performer_id(name)');
+      return supabase!.from('do_not_serve_list').insert(newEntry).select('*, performer:submitted_by_performer_id(name)');
   },
 
   async createBookingRequest(formState: BookingFormState, requestedPerformers: Performer[]): Promise<{ data: Booking[] | null, error: any }> {
