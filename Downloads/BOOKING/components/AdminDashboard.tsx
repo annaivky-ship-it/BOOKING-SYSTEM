@@ -2,8 +2,10 @@
 import React, { useMemo, useState } from 'react';
 import { Booking, Performer, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, Service } from '../types';
 import { allServices } from '../data/mockData';
-import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, LineChart, TrendingUp, CheckCircle, Calendar, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, LineChart, TrendingUp, CheckCircle, Calendar, ArrowUpDown, ArrowUp, ArrowDown, UserPlus } from 'lucide-react';
 import { calculateBookingCost } from '../utils/bookingUtils';
+import AddPerformerModal, { NewPerformer } from './AddPerformerModal';
+import { api } from '../services/api';
 
 interface AdminDashboardProps {
   bookings: Booking[];
@@ -15,6 +17,7 @@ interface AdminDashboardProps {
   onViewDoNotServe: () => void;
   onAdminDecisionForPerformer: (bookingId: string, decision: 'accepted' | 'declined') => Promise<void>;
   onAdminChangePerformer: (bookingId: string, newPerformerId: number) => Promise<void>;
+  onRefreshData: () => Promise<void>;
 }
 
 const statusClasses: Record<BookingStatus, string> = {
@@ -37,13 +40,14 @@ const bookingStatusOptions: { value: BookingStatus; label: string }[] = [
 
 type AdminTab = 'management' | 'payments' | 'reporting';
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, doNotServeList, communications, onUpdateBookingStatus, onUpdateDoNotServeStatus, onViewDoNotServe, onAdminDecisionForPerformer, onAdminChangePerformer }) => {
-  
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, doNotServeList, communications, onUpdateBookingStatus, onUpdateDoNotServeStatus, onViewDoNotServe, onAdminDecisionForPerformer, onAdminChangePerformer, onRefreshData }) => {
+
   const [activeTab, setActiveTab] = useState<AdminTab>('management');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | ''>('');
   const [sortField, setSortField] = useState<'event_date' | 'client_name' | 'performer_name' | 'status'>('event_date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [loadingState, setLoadingState] = useState<{ type: string, id: string } | null>(null);
+  const [showAddPerformerModal, setShowAddPerformerModal] = useState(false);
 
   const handleAction = async (type: string, id: string, action: () => Promise<void>) => {
     setLoadingState({ type, id });
@@ -153,6 +157,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
   const pendingBookings = totalBookings - confirmedBookingsCount - bookings.filter(b => b.status === 'rejected').length;
 
 
+  const handleAddPerformer = async (performerData: NewPerformer) => {
+    const { data, error } = await api.createPerformer(performerData);
+    if (error) {
+      throw new Error(error.message || 'Failed to add performer');
+    }
+    await onRefreshData();
+  };
+
   return (
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -160,13 +172,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
           <h1 className="text-4xl font-bold text-white">Admin Dashboard</h1>
           <p className="text-xl text-zinc-400 mt-1">Manage bookings and monitor performers.</p>
         </div>
-        <button 
-          onClick={onViewDoNotServe}
-          className="bg-red-600/90 hover:bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg shadow-red-500/10 hover:shadow-red-500/20"
-        >
-          <ShieldAlert className="h-5 w-5" />
-          Manage 'Do Not Serve' List
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowAddPerformerModal(true)}
+            className="bg-purple-600/90 hover:bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/10 hover:shadow-purple-500/20"
+          >
+            <UserPlus className="h-5 w-5" />
+            Add Performer
+          </button>
+          <button
+            onClick={onViewDoNotServe}
+            className="bg-red-600/90 hover:bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg shadow-red-500/10 hover:shadow-red-500/20"
+          >
+            <ShieldAlert className="h-5 w-5" />
+            Manage 'Do Not Serve' List
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -523,6 +544,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
             </div>
         </div>
     </div>
+      {showAddPerformerModal && (
+        <AddPerformerModal
+          onClose={() => setShowAddPerformerModal(false)}
+          onAddPerformer={handleAddPerformer}
+        />
+      )}
   );
 };
 

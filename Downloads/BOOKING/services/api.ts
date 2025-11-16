@@ -253,7 +253,51 @@ export const api = {
         .from('bookings')
         .insert(bookingsToInsert)
         .select('*, performer:performer_id(id, name)');
-    
+
     return { data: data as Booking[], error };
+  },
+
+  // --- CREATE PERFORMER ---
+  async createPerformer(performerData: {
+    name: string;
+    tagline: string;
+    photo_url: string;
+    bio: string;
+    service_ids: string[];
+    service_areas: string[];
+    status: PerformerStatus;
+    phone: string;
+    email?: string;
+    rate_multiplier?: number;
+  }) {
+    if (isDemoMode) {
+      await delay(800);
+      const newPerformer: Performer = {
+        id: Math.max(...demoPerformers.map(p => p.id)) + 1,
+        ...performerData,
+        created_at: new Date().toISOString(),
+      };
+      demoPerformers.push(newPerformer);
+      return { data: newPerformer, error: null };
+    }
+
+    const { data, error } = await supabase!
+      .from('performers')
+      .insert([{
+        name: performerData.name,
+        tagline: performerData.tagline,
+        photo_url: performerData.photo_url,
+        bio: performerData.bio,
+        service_ids: performerData.service_ids,
+        service_areas: performerData.service_areas,
+        status: performerData.status,
+        phone: performerData.phone,
+        email: performerData.email,
+        rate_multiplier: performerData.rate_multiplier || 1.0
+      }])
+      .select()
+      .single();
+
+    return { data: data as Performer | null, error };
   }
 };

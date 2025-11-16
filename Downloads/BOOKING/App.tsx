@@ -635,16 +635,17 @@ const App: React.FC = () => {
         );
       case 'admin_dashboard':
         if (authedUser?.role !== 'admin') return <AccessDenied />;
-        return <AdminDashboard 
-            bookings={bookings} 
-            performers={performers} 
-            doNotServeList={doNotServeList} 
-            onUpdateBookingStatus={handleUpdateBookingStatus} 
-            onUpdateDoNotServeStatus={handleUpdateDoNotServeStatus} 
-            onViewDoNotServe={handleViewDoNotServe} 
-            communications={communications} 
+        return <AdminDashboard
+            bookings={bookings}
+            performers={performers}
+            doNotServeList={doNotServeList}
+            onUpdateBookingStatus={handleUpdateBookingStatus}
+            onUpdateDoNotServeStatus={handleUpdateDoNotServeStatus}
+            onViewDoNotServe={handleViewDoNotServe}
+            communications={communications}
             onAdminDecisionForPerformer={handleAdminBookingDecisionForPerformer}
             onAdminChangePerformer={handleAdminChangePerformer}
+            onRefreshData={loadInitialData}
           />;
       case 'performer_dashboard':
         if (authedUser?.role !== 'performer') return <AccessDenied />;
