@@ -5,9 +5,9 @@
 ### 1. Environment Variables Added ✓
 All Twilio credentials are now configured in Vercel Production:
 
-- ✅ `VITE_TWILIO_ACCOUNT_SID` - ACbe4fe93cad91172d1836bf0b1df21f9c
-- ✅ `VITE_TWILIO_AUTH_TOKEN` - (encrypted)
-- ✅ `VITE_TWILIO_PHONE_NUMBER` - +1 (508) 882-6327
+- ✅ `VITE_TWILIO_ACCOUNT_SID` - (configured in Vercel)
+- ✅ `VITE_TWILIO_AUTH_TOKEN` - (configured in Vercel)
+- ✅ `VITE_TWILIO_PHONE_NUMBER` - (configured in Vercel)
 
 ### 2. Production Deployment ✓
 **Live Site:** https://flavor-entertainers-booking-7uuethail.vercel.app
@@ -22,8 +22,8 @@ The app is now deployed with full Twilio/WhatsApp support!
 
 ## 📱 Your Twilio Account
 
-**Account SID:** `ACbe4fe93cad91172d1836bf0b1df21f9c`
-**Phone Number:** `+1 (508) 882-6327`
+**Account SID:** (configured in Vercel environment variables)
+**Phone Number:** (configured in Vercel environment variables)
 **Dashboard:** https://console.twilio.com/
 
 ---
@@ -232,8 +232,8 @@ https://console.twilio.com/monitor/logs/whatsapp
 **Production URL:** https://flavor-entertainers-booking-7uuethail.vercel.app
 
 **Twilio:**
-- Phone: +1 (508) 882-6327
-- Account: ACbe4fe93cad91172d1836bf0b1df21f9c
+- Phone: (configured in Vercel)
+- Account: (configured in Vercel)
 - Status: ✅ Configured
 
 **Next:** Join WhatsApp sandbox and test!
