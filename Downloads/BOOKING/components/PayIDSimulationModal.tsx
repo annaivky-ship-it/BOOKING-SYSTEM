@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { LoaderCircle, CheckCircle, Shield, Building2, X } from 'lucide-react';
-import { PAY_ID_NAME, PAY_ID_EMAIL } from '../constants';
+import { LoaderCircle, CheckCircle, Shield, Building2, X, Mail, Phone } from 'lucide-react';
+import { PAY_ID_NAME, PAY_ID_EMAIL, PAY_ID_PHONE } from '../constants';
 
 interface PayIDSimulationModalProps {
   amount: number;
@@ -47,15 +47,30 @@ const PayIDSimulationModal: React.FC<PayIDSimulationModalProps> = ({ amount, onP
               <p className="text-4xl font-bold text-white my-2">${amount.toFixed(2)}</p>
               <p className="text-zinc-400">to</p>
             </div>
-            <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-700 flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-orange-500/20 text-orange-400 rounded-lg flex items-center justify-center">
-                    <Building2 className="h-6 w-6" />
+            <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-700 mb-6">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-orange-500/20 text-orange-400 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-white text-lg">{PAY_ID_NAME}</p>
+                        <p className="text-xs text-zinc-500">PayID Recipient</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="font-semibold text-white">{PAY_ID_NAME}</p>
-                    <p className="text-sm text-zinc-400">{PAY_ID_EMAIL}</p>
+                <div className="space-y-2 pl-16">
+                    <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-orange-400" />
+                        <span className="text-zinc-300">{PAY_ID_EMAIL}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-orange-400" />
+                        <span className="text-zinc-300">{PAY_ID_PHONE}</span>
+                    </div>
                 </div>
             </div>
+            <p className="text-xs text-zinc-500 text-center mb-4">
+                You can use either the email or phone number to complete your PayID payment
+            </p>
             <button onClick={handlePay} className="btn-primary w-full text-lg flex items-center justify-center gap-2">
               <Shield className="h-5 w-5" />
               Confirm & Pay
