@@ -654,7 +654,7 @@ const App: React.FC = () => {
         const performerCommunications = communications.filter(c => c.recipient === authedUser.id);
         return currentPerformer ? <PerformerDashboard performer={currentPerformer} bookings={performerBookings} communications={performerCommunications} onToggleStatus={(status) => handlePerformerStatusChange(currentPerformer.id, status)} onViewDoNotServe={handleViewDoNotServe} onBookingDecision={handlePerformerBookingDecision} /> : <p className="text-center text-gray-400">Select a performer to view their dashboard.</p>;
       case 'client_dashboard':
-        return <ClientDashboard bookings={bookings} onBrowsePerformers={() => setView('available_now')} />;
+        return <ClientDashboard bookings={bookings} onBrowsePerformers={() => setView('available_now')} onUpdateBookingStatus={handleUpdateBookingStatus} />;
       case 'do_not_serve':
         if (!authedUser || role === 'user') return <AccessDenied />;
         const performerSubmitting = performers.find(p => p.id === authedUser.id);

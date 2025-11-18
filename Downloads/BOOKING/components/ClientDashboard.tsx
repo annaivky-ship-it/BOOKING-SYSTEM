@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { Booking, Communication } from '../types';
-import { Calendar, Clock, User, MessageCircle, MapPin, Wallet, Search, LogOut, Briefcase, LoaderCircle, AlertTriangle, CheckCircle, Archive, History, Info } from 'lucide-react';
+import { Calendar, Clock, User, MessageCircle, MapPin, Wallet, Search, LogOut, Briefcase, LoaderCircle, AlertTriangle, CheckCircle, Archive, History, Info, CreditCard } from 'lucide-react';
 import ChatDialog from './ChatDialog';
+import PayIDSimulationModal from './PayIDSimulationModal';
 import { api } from '../services/api';
 import { calculateBookingCost } from '../utils/bookingUtils';
+import { DEPOSIT_PERCENTAGE } from '../constants';
 import InputField from './InputField';
 
 interface ClientDashboardProps {
   bookings: Booking[];
   onBrowsePerformers: () => void;
+  onUpdateBookingStatus?: (bookingId: string, status: Booking['status']) => Promise<void>;
 }
 
 const statusConfig: Record<Booking['status'], {
@@ -26,14 +29,15 @@ const statusConfig: Record<Booking['status'], {
   rejected: { color: 'text-red-400', borderColor: 'border-red-500', Icon: AlertTriangle, title: "Booking Rejected", description: "Unfortunately, this booking could not be completed at this time." },
 };
 
-const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePerformers }) => {
+const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePerformers, onUpdateBookingStatus }) => {
   const [clientEmail, setClientEmail] = useState<string | null>(() => localStorage.getItem('clientEmail'));
   const [emailInput, setEmailInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [activeChatBooking, setActiveChatBooking] = useState<Booking | null>(null);
   const [chatMessages, setChatMessages] = useState<Communication[]>([]);
+  const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +77,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePer
 
   const handleSendMessage = async (messageText: string) => {
       if (!activeChatBooking) return;
-      
+
       try {
           const { data, error } = await api.sendBookingMessage(
               activeChatBooking.id,
@@ -81,7 +85,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePer
               activeChatBooking.client_name, // Sender
               activeChatBooking.performer?.name || 'Performer' // Recipient
           );
-          
+
           if (error) throw error;
           if (data) {
               setChatMessages(prev => [...prev, data]);
@@ -89,6 +93,20 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePer
       } catch (err) {
           console.error("Failed to send message", err);
       }
+  };
+
+  const handlePayDeposit = (booking: Booking) => {
+    setPaymentBooking(booking);
+  };
+
+  const handlePaymentSuccess = async () => {
+    if (!paymentBooking || !onUpdateBookingStatus) return;
+    try {
+      await onUpdateBookingStatus(paymentBooking.id, 'pending_deposit_confirmation');
+      setPaymentBooking(null);
+    } catch (err) {
+      console.error("Failed to update booking after payment:", err);
+    }
   };
 
   const bookingGroups = useMemo(() => {
@@ -171,8 +189,16 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePer
                          <div className="bg-zinc-900/50 p-6 flex flex-col justify-between items-center md:items-end md:border-l border-zinc-800 md:min-w-[220px]">
                             <div className="text-center md:text-right mb-4 w-full">
                                <p className="text-zinc-400 text-sm flex items-center md:justify-end gap-1"><Wallet size={14}/> Total Cost</p>
-                               <p className="text-3xl font-bold text-white">${totalCost.toFixed(2)}</p> 
+                               <p className="text-3xl font-bold text-white">${totalCost.toFixed(2)}</p>
                             </div>
+                            {booking.status === 'deposit_pending' && (
+                                <button
+                                    onClick={() => handlePayDeposit(booking)}
+                                    className="btn-primary w-full flex items-center justify-center gap-2 text-sm px-4 py-2"
+                                >
+                                    <CreditCard size={16} /> Pay ${(totalCost * DEPOSIT_PERCENTAGE).toFixed(2)} Deposit
+                                </button>
+                            )}
                             {booking.status === 'confirmed' && (
                                 <button onClick={() => handleOpenChat(booking)} className="btn-primary w-full flex items-center justify-center gap-2 text-sm px-4 py-2">
                                     <MessageCircle size={16} /> Message Performer
@@ -215,6 +241,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ bookings, onBrowsePer
                 Book a Performer
             </button>
         </div>
+      )}
+
+      {paymentBooking && (
+          <PayIDSimulationModal
+              amount={calculateBookingCost(paymentBooking.duration_hours, paymentBooking.services_requested, 1).totalCost * DEPOSIT_PERCENTAGE}
+              onPaymentSuccess={handlePaymentSuccess}
+              onClose={() => setPaymentBooking(null)}
+          />
       )}
 
       {activeChatBooking && (
