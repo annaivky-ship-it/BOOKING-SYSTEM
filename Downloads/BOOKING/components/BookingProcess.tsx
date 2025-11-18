@@ -17,9 +17,10 @@ export interface BookingFormState {
   eventTime: string;
   eventAddress: string;
   eventType: string;
-  duration: string;
+  duration: string; // Kept for backward compatibility
   numberOfGuests: string;
   selectedServices: string[];
+  serviceDurations: Record<string, number>; // Maps service ID to duration in hours
   idDocument: File | null;
   client_message: string;
 }
@@ -161,7 +162,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
     const [form, setForm] = useState<BookingFormState>({
-        fullName: '', email: '', mobile: '', eventDate: '', eventTime: '', eventAddress: '', eventType: '', duration: '2', numberOfGuests: '', selectedServices: initialSelectedServices, idDocument: null, client_message: ''
+        fullName: '', email: '', mobile: '', eventDate: '', eventTime: '', eventAddress: '', eventType: '', duration: '2', numberOfGuests: '', selectedServices: initialSelectedServices, serviceDurations: {}, idDocument: null, client_message: ''
     });
     const [bookingIds, setBookingIds] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -232,10 +233,23 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     
     const handleServiceChange = (serviceId: string) => {
         setForm(prev => {
-            const selectedServices = prev.selectedServices.includes(serviceId)
+            const isRemoving = prev.selectedServices.includes(serviceId);
+            const selectedServices = isRemoving
                 ? prev.selectedServices.filter(s => s !== serviceId)
                 : [...prev.selectedServices, serviceId];
-            return { ...prev, selectedServices };
+
+            // Update service durations
+            const serviceDurations = { ...prev.serviceDurations };
+            if (isRemoving) {
+                delete serviceDurations[serviceId];
+            } else {
+                // Initialize with default duration (1 hour for per_hour services, or service duration)
+                const service = allServices.find(s => s.id === serviceId);
+                const defaultDuration = service?.min_duration_hours || 1;
+                serviceDurations[serviceId] = defaultDuration;
+            }
+
+            return { ...prev, selectedServices, serviceDurations };
         });
         if (fieldErrors.selectedServices) {
             setFieldErrors(prev => {
@@ -244,6 +258,16 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                 return newErrors;
             });
         }
+    };
+
+    const handleServiceDurationChange = (serviceId: string, hours: number) => {
+        setForm(prev => ({
+            ...prev,
+            serviceDurations: {
+                ...prev.serviceDurations,
+                [serviceId]: hours
+            }
+        }));
     };
     
     const availableServices = useMemo(() => {
@@ -260,26 +284,26 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
 
     const { totalCost, depositAmount } = useMemo(() => {
         if (form.selectedServices.length === 0 || performers.length === 0) return { totalCost: 0, depositAmount: 0 };
-        
-        const durationNum = Number(form.duration) || 0;
-        let hourlyCost = 0;
-        let flatCost = 0;
+
+        let totalServiceCost = 0;
 
         form.selectedServices.forEach(serviceId => {
             const service = allServices.find(s => s.id === serviceId);
             if (!service) return;
 
+            const serviceDuration = form.serviceDurations[serviceId] || 1;
+
             if (service.rate_type === 'flat') {
-                flatCost += service.rate;
+                totalServiceCost += service.rate;
             } else if (service.rate_type === 'per_hour') {
-                const hours = Math.max(durationNum, service.min_duration_hours || 0);
-                hourlyCost += service.rate * hours;
+                const hours = Math.max(serviceDuration, service.min_duration_hours || 1);
+                totalServiceCost += service.rate * hours;
             }
         });
-        
-        const calculatedTotal = (hourlyCost * performers.length) + flatCost;
+
+        const calculatedTotal = totalServiceCost * performers.length;
         return { totalCost: calculatedTotal, depositAmount: calculatedTotal * DEPOSIT_PERCENTAGE };
-    }, [form.selectedServices, form.duration, performers.length]);
+    }, [form.selectedServices, form.serviceDurations, performers.length]);
     
     const { formattedTotalDuration } = useMemo(() => getBookingDurationInfo(form.duration, form.selectedServices), [form.duration, form.selectedServices]);
 
@@ -502,31 +526,72 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                             <div key={category}>
                                 <h4 className="font-semibold text-zinc-200 mt-4 mb-2">{category}</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {services.map(service => (
-                                    <label key={service.id} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${form.selectedServices.includes(service.id) ? 'bg-zinc-800 border-orange-500/50' : 'bg-zinc-900 border-zinc-700/50 hover:bg-zinc-800/70'}`}>
-                                        <input
-                                        type="checkbox"
-                                        checked={form.selectedServices.includes(service.id)}
-                                        onChange={() => handleServiceChange(service.id)}
-                                        className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-600 focus:ring-orange-500"
-                                        />
-                                        <div className="ml-3 text-sm">
-                                            <span className="font-medium text-white">{service.name}</span>
-                                            <p className="text-zinc-400">{service.description}</p>
-                                            <p className="text-orange-400 font-semibold mt-1">
-                                                ${service.rate} {service.rate_type === 'per_hour' ? '/hr' : 'flat rate'}
-                                            </p>
-                                            {(service.duration_minutes || service.min_duration_hours) && (
-                                                <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-400">
-                                                    <Clock size={14} className="flex-shrink-0" />
-                                                    <span>
-                                                        {service.duration_minutes ? `${service.duration_minutes} minutes` : `Min. ${service.min_duration_hours} hour${service.min_duration_hours! > 1 ? 's' : ''}`}
+                                    {services.map(service => {
+                                        const isSelected = form.selectedServices.includes(service.id);
+                                        const serviceDuration = form.serviceDurations[service.id] || (service.min_duration_hours || 1);
+
+                                        return (
+                                        <div key={service.id} className={`flex flex-col p-3 rounded-lg border transition-colors ${isSelected ? 'bg-zinc-800 border-orange-500/50' : 'bg-zinc-900 border-zinc-700/50'}`}>
+                                            <label className="flex items-start cursor-pointer">
+                                                <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={() => handleServiceChange(service.id)}
+                                                className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-600 focus:ring-orange-500"
+                                                />
+                                                <div className="ml-3 text-sm flex-1">
+                                                    <span className="font-medium text-white">{service.name}</span>
+                                                    <p className="text-zinc-400">{service.description}</p>
+                                                    <p className="text-orange-400 font-semibold mt-1">
+                                                        ${service.rate} {service.rate_type === 'per_hour' ? '/hr' : 'flat rate'}
+                                                    </p>
+                                                    {(service.duration_minutes || service.min_duration_hours) && (
+                                                        <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-400">
+                                                            <Clock size={14} className="flex-shrink-0" />
+                                                            <span>
+                                                                {service.duration_minutes ? `${service.duration_minutes} minutes` : `Min. ${service.min_duration_hours} hour${service.min_duration_hours! > 1 ? 's' : ''}`}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </label>
+
+                                            {isSelected && service.rate_type === 'per_hour' && (
+                                                <div className="mt-3 ml-7 flex items-center gap-3">
+                                                    <label className="text-sm text-zinc-300 font-medium whitespace-nowrap">Duration:</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleServiceDurationChange(service.id, Math.max((service.min_duration_hours || 1), serviceDuration - (service.min_duration_hours || 0.5)))}
+                                                            className="px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-sm"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <input
+                                                            type="number"
+                                                            step={service.min_duration_hours || 0.5}
+                                                            min={service.min_duration_hours || 1}
+                                                            value={serviceDuration}
+                                                            onChange={(e) => handleServiceDurationChange(service.id, Math.max((service.min_duration_hours || 1), Number(e.target.value)))}
+                                                            className="w-16 px-2 py-1 bg-zinc-700 text-white text-center rounded border border-zinc-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                        />
+                                                        <span className="text-sm text-zinc-400">hours</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleServiceDurationChange(service.id, serviceDuration + (service.min_duration_hours || 0.5))}
+                                                            className="px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-sm"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-sm text-orange-400 font-semibold ml-2">
+                                                        = ${(service.rate * serviceDuration).toFixed(2)}
                                                     </span>
                                                 </div>
                                             )}
                                         </div>
-                                    </label>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
@@ -740,6 +805,10 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                         eventTime: form.eventTime,
                         eventAddress: form.eventAddress,
                         selectedServices: form.selectedServices.map(id => allServices.find(s => s.id === id)?.name || id),
+                        servicesWithDuration: form.selectedServices.map(id => ({
+                            serviceName: allServices.find(s => s.id === id)?.name || id,
+                            durationHours: form.serviceDurations[id] || 1
+                        })),
                         eventDuration: formattedTotalDuration,
                         totalCost: totalCost,
                         depositAmount: depositAmount
