@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "vercel-build": "npm install && vite build",
     "preview": "vite preview",
     "setup:supabase": "bash scripts/setup-supabase.sh",
     "setup:supabase:win": "scripts\\setup-supabase.bat",
