@@ -762,7 +762,6 @@ const App: React.FC = () => {
         onSearchChange={handleSearchChange}
       >
         <div className="flex items-center gap-2 sm:gap-4">
-          <span className="text-xs font-bold uppercase tracking-widest bg-orange-500/20 text-orange-300 px-3 py-1 rounded-full">Demo Mode</span>
           {authedUser ? (
             <>
               <span className="text-sm text-zinc-300 hidden sm:block">Welcome, <strong className="font-semibold text-white">{authedUser.name}</strong></span>
