@@ -1,12 +1,16 @@
 # 🎉 Setup Complete!
 
+## ⚠️ SECURITY WARNING
+**The previous version of this file contained exposed secrets that have been removed.**
+**You MUST rotate all Supabase keys and encryption keys immediately!**
+
 ## What's Been Configured
 
 ### ✅ Environment Variables (.env.local)
-- **Supabase URL**: `https://qmedckkwtgkhrdihqrnd.supabase.co`
-- **Supabase Anon Key**: Configured
-- **Supabase Service Role Key**: Configured
-- **Encryption Key**: `P2WSchMxD7Ehr1D0qEKk5C7fwK/gYvKb`
+- **Supabase URL**: Configured (see Supabase dashboard)
+- **Supabase Anon Key**: ⚠️ ROTATE IMMEDIATELY - previous key was exposed
+- **Supabase Service Role Key**: ⚠️ ROTATE IMMEDIATELY - previous key was exposed
+- **Encryption Key**: ⚠️ GENERATE NEW - previous key was exposed
 - **Timezone**: Australia/Perth
 
 ### ✅ Project Files Created

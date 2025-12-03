@@ -97,12 +97,21 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
-    // Check if entry already exists
-    const { data: existing, error: existingError } = await serviceClient
-      .from('blacklist')
-      .select('id')
-      .or(`email.eq.${data.email || 'null'},phone.eq.${data.phone || 'null'}`)
-      .single();
+    // Check if entry already exists - Fixed SQL injection
+    let existing = null;
+    if (data.email && data.phone) {
+      const [emailCheck, phoneCheck] = await Promise.all([
+        serviceClient.from('blacklist').select('id').eq('email', data.email).maybeSingle(),
+        serviceClient.from('blacklist').select('id').eq('phone', data.phone).maybeSingle()
+      ]);
+      existing = emailCheck.data || phoneCheck.data;
+    } else if (data.email) {
+      const result = await serviceClient.from('blacklist').select('id').eq('email', data.email).maybeSingle();
+      existing = result.data;
+    } else if (data.phone) {
+      const result = await serviceClient.from('blacklist').select('id').eq('phone', data.phone).maybeSingle();
+      existing = result.data;
+    }
 
     if (existing) {
       return NextResponse.json({ error: 'Entry already in blacklist' }, { status: 400 });
