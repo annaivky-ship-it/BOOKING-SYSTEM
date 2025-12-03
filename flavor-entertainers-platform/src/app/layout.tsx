@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { MobileLayout } from "@/components/layout/mobile-layout";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+// Using system fonts instead of Google Fonts for better performance and reliability
+// CSS classes use Tailwind's default font stack
 
 export const metadata: Metadata = {
   title: "Flavor Entertainers - Professional Performer Booking Platform",
@@ -45,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="dark">
-      <body className={`${inter.variable} font-sans antialiased dark-radial-bg custom-scrollbar`}>
+      <body className="font-sans antialiased dark-radial-bg custom-scrollbar">
         <Providers>
           <MobileLayout>
             {children}

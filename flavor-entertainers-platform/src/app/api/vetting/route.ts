@@ -17,35 +17,42 @@ export async function GET(request: NextRequest) {
     const { page, limit } = paginationData
     const offset = (page - 1) * limit
 
-    // Build query conditions
-    const where: any = {}
+    // Build query for applications
+    let applicationsQuery = db
+      .from('vetting_applications')
+      .select('*, client:users!vetting_applications_client_id_fkey(id, email, phone, legal_name, created_at)')
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false })
+
     if (status) {
-      where.status = status
+      applicationsQuery = applicationsQuery.eq('status', status)
     }
 
-    // Get vetting applications
-    const [applications, total] = await Promise.all([
-      db.vettingApplication.findMany({
-        where,
-        include: {
-          client: {
-            select: {
-              id: true,
-              email: true,
-              phone: true,
-              legal_name: true,
-              created_at: true
-            }
-          }
-        },
-        skip: offset,
-        take: limit,
-        orderBy: [
-          { created_at: 'desc' }
-        ]
-      }),
-      db.vettingApplication.count({ where })
+    // Build count query
+    let countQuery = db
+      .from('vetting_applications')
+      .select('*', { count: 'exact', head: true })
+
+    if (status) {
+      countQuery = countQuery.eq('status', status)
+    }
+
+    // Execute queries in parallel
+    const [applicationsResult, countResult] = await Promise.all([
+      applicationsQuery,
+      countQuery
     ])
+
+    if (applicationsResult.error) {
+      throw new Error(applicationsResult.error.message)
+    }
+
+    if (countResult.error) {
+      throw new Error(countResult.error.message)
+    }
+
+    const applications = applicationsResult.data || []
+    const total = countResult.count || 0
 
     return NextResponse.json(
       createSuccessResponse({
@@ -86,11 +93,13 @@ export async function POST(request: NextRequest) {
     const ipAddress = getClientIpAddress(request)
 
     // Check if client exists
-    const client = await db.user.findUnique({
-      where: { id: client_id }
-    })
+    const { data: client, error: clientError } = await db
+      .from('users')
+      .select('*')
+      .eq('id', client_id)
+      .single()
 
-    if (!client) {
+    if (clientError || !client) {
       return NextResponse.json(
         createErrorResponse('Client not found', 'CLIENT_NOT_FOUND'),
         { status: 404 }
@@ -105,14 +114,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if there's already a pending application
-    const existingApplication = await db.vettingApplication.findFirst({
-      where: {
-        client_id,
-        status: 'SUBMITTED'
-      }
-    })
+    const { data: existingApplication, error: existingError } = await db
+      .from('vetting_applications')
+      .select('*')
+      .eq('client_id', client_id)
+      .eq('status', 'SUBMITTED')
+      .single()
 
-    if (existingApplication) {
+    if (existingApplication && !existingError) {
       return NextResponse.json(
         createErrorResponse('You already have a pending vetting application', 'APPLICATION_EXISTS'),
         { status: 409 }
@@ -120,25 +129,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create vetting application
-    const application = await db.vettingApplication.create({
-      data: {
+    const { data: application, error: applicationError } = await db
+      .from('vetting_applications')
+      .insert({
         client_id,
         ...applicationData,
         file_id,
         ip_address: ipAddress,
         status: 'SUBMITTED'
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            email: true,
-            phone: true,
-            legal_name: true
-          }
-        }
-      }
-    })
+      })
+      .select('*, client:users!vetting_applications_client_id_fkey(id, email, phone, legal_name)')
+      .single()
+
+    if (applicationError || !application) {
+      throw new Error(applicationError?.message || 'Failed to create vetting application')
+    }
 
     // Create audit log
     const auditData = createAuditLog(
@@ -157,9 +162,13 @@ export async function POST(request: NextRequest) {
       ipAddress
     )
 
-    await db.auditLog.create({
-      data: auditData
-    })
+    const { error: auditError } = await db
+      .from('audit_logs')
+      .insert(auditData)
+
+    if (auditError) {
+      console.error('Failed to create audit log:', auditError)
+    }
 
     // TODO: Send notification to admin about new vetting application
 

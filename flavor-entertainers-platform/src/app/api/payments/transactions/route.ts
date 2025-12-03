@@ -24,15 +24,13 @@ export async function POST(request: NextRequest) {
     const ipAddress = getClientIpAddress(request)
 
     // Check if booking exists
-    const booking = await db.booking.findUnique({
-      where: { id: booking_id },
-      include: {
-        client: true,
-        payments: true
-      }
-    })
+    const { data: booking, error: bookingError } = await db
+      .from('bookings')
+      .select('*, client:users!bookings_client_id_fkey(*), payments:payment_transactions(*)')
+      .eq('id', booking_id)
+      .single()
 
-    if (!booking) {
+    if (bookingError || !booking) {
       return NextResponse.json(
         createErrorResponse('Booking not found', 'BOOKING_NOT_FOUND'),
         { status: 404 }
@@ -76,8 +74,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create payment transaction
-    const payment = await db.paymentTransaction.create({
-      data: {
+    const { data: payment, error: paymentError } = await db
+      .from('payment_transactions')
+      .insert({
         booking_id,
         type,
         method,
@@ -85,8 +84,13 @@ export async function POST(request: NextRequest) {
         reference,
         receipt_file_id,
         status: 'UPLOADED'
-      }
-    })
+      })
+      .select()
+      .single()
+
+    if (paymentError || !payment) {
+      throw new Error(paymentError?.message || 'Failed to create payment transaction')
+    }
 
     // Create audit log
     const auditData = createAuditLog(
@@ -107,9 +111,13 @@ export async function POST(request: NextRequest) {
       ipAddress
     )
 
-    await db.auditLog.create({
-      data: auditData
-    })
+    const { error: auditError } = await db
+      .from('audit_logs')
+      .insert(auditData)
+
+    if (auditError) {
+      console.error('Failed to create audit log:', auditError)
+    }
 
     // TODO: Send notification to admin about new payment upload
 
@@ -135,49 +143,38 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const type = searchParams.get('type')
 
-    // Build query conditions
-    const where: any = {}
+    // Build query
+    let query = db
+      .from('payment_transactions')
+      .select(`
+        *,
+        booking:bookings!payment_transactions_booking_id_fkey(
+          id,
+          reference_code,
+          subtotal,
+          client:users!bookings_client_id_fkey(id, email, legal_name),
+          performer:performers!bookings_performer_id_fkey(id, stage_name)
+        )
+      `)
+      .order('created_at', { ascending: false })
 
     if (booking_id) {
-      where.booking_id = booking_id
+      query = query.eq('booking_id', booking_id)
     }
 
     if (status) {
-      where.status = status
+      query = query.eq('status', status)
     }
 
     if (type) {
-      where.type = type
+      query = query.eq('type', type)
     }
 
-    const payments = await db.paymentTransaction.findMany({
-      where,
-      include: {
-        booking: {
-          select: {
-            id: true,
-            reference_code: true,
-            subtotal: true,
-            client: {
-              select: {
-                id: true,
-                email: true,
-                legal_name: true
-              }
-            },
-            performer: {
-              select: {
-                id: true,
-                stage_name: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    })
+    const { data: payments, error: paymentsError } = await query
+
+    if (paymentsError) {
+      throw new Error(paymentsError.message)
+    }
 
     return NextResponse.json(
       createSuccessResponse(payments)

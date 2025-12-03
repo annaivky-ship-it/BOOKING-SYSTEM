@@ -10,61 +10,25 @@ export async function GET(
   try {
     const { id } = params
 
-    const booking = await db.booking.findUnique({
-      where: { id },
-      include: {
-        client: {
-          select: {
-            id: true,
-            email: true,
-            phone: true,
-            legal_name: true
-          }
-        },
-        performer: {
-          select: {
-            id: true,
-            stage_name: true,
-            bio: true,
-            media_refs: true,
-            user: {
-              select: {
-                id: true,
-                email: true,
-                phone: true
-              }
-            }
-          }
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            category: true,
-            unit: true,
-            base_rate: true
-          }
-        },
-        payments: {
-          select: {
-            id: true,
-            type: true,
-            method: true,
-            amount: true,
-            status: true,
-            reference: true,
-            created_at: true,
-            verified_at: true
-          },
-          orderBy: {
-            created_at: 'desc'
-          }
-        }
-      }
-    })
+    const { data: booking, error: bookingError } = await db
+      .from('bookings')
+      .select(`
+        *,
+        client:users!bookings_client_id_fkey(id, email, phone, legal_name),
+        performer:performers!bookings_performer_id_fkey(
+          id,
+          stage_name,
+          bio,
+          media_refs,
+          user:users!performers_user_id_fkey(id, email, phone)
+        ),
+        service:services!bookings_service_id_fkey(id, name, description, category, unit, base_rate),
+        payments:payment_transactions(id, type, method, amount, status, reference, created_at, verified_at)
+      `)
+      .eq('id', id)
+      .single()
 
-    if (!booking) {
+    if (bookingError || !booking) {
       return NextResponse.json(
         createErrorResponse('Booking not found', 'BOOKING_NOT_FOUND'),
         { status: 404 }
@@ -106,15 +70,17 @@ export async function PATCH(
     const ipAddress = getClientIpAddress(request)
 
     // Get existing booking
-    const existingBooking = await db.booking.findUnique({
-      where: { id },
-      include: {
-        client: true,
-        performer: { include: { user: true } }
-      }
-    })
+    const { data: existingBooking, error: existingError } = await db
+      .from('bookings')
+      .select(`
+        *,
+        client:users!bookings_client_id_fkey(*),
+        performer:performers!bookings_performer_id_fkey(*, user:users!performers_user_id_fkey(*))
+      `)
+      .eq('id', id)
+      .single()
 
-    if (!existingBooking) {
+    if (existingError || !existingBooking) {
       return NextResponse.json(
         createErrorResponse('Booking not found', 'BOOKING_NOT_FOUND'),
         { status: 404 }
@@ -122,44 +88,31 @@ export async function PATCH(
     }
 
     // Update booking
-    const updatedBooking = await db.booking.update({
-      where: { id },
-      data: {
-        ...(status && { status }),
-        ...(notes && { notes }),
-        updated_at: new Date()
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            email: true,
-            phone: true,
-            legal_name: true
-          }
-        },
-        performer: {
-          select: {
-            id: true,
-            stage_name: true,
-            user: {
-              select: {
-                id: true,
-                email: true,
-                phone: true
-              }
-            }
-          }
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-            category: true
-          }
-        }
-      }
-    })
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+    if (status) updateData.status = status
+    if (notes) updateData.notes = notes
+
+    const { data: updatedBooking, error: updateError } = await db
+      .from('bookings')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        client:users!bookings_client_id_fkey(id, email, phone, legal_name),
+        performer:performers!bookings_performer_id_fkey(
+          id,
+          stage_name,
+          user:users!performers_user_id_fkey(id, email, phone)
+        ),
+        service:services!bookings_service_id_fkey(id, name, category)
+      `)
+      .single()
+
+    if (updateError || !updatedBooking) {
+      throw new Error(updateError?.message || 'Failed to update booking')
+    }
 
     // Create audit log
     const auditData = createAuditLog(
@@ -178,9 +131,13 @@ export async function PATCH(
       ipAddress
     )
 
-    await db.auditLog.create({
-      data: auditData
-    })
+    const { error: auditError } = await db
+      .from('audit_logs')
+      .insert(auditData)
+
+    if (auditError) {
+      console.error('Failed to create audit log:', auditError)
+    }
 
     // TODO: Send notification based on status change
     // APPROVED -> Notify client and performer
@@ -210,15 +167,13 @@ export async function DELETE(
     const ipAddress = getClientIpAddress(request)
 
     // Get existing booking
-    const existingBooking = await db.booking.findUnique({
-      where: { id },
-      include: {
-        client: true,
-        payments: true
-      }
-    })
+    const { data: existingBooking, error: existingError } = await db
+      .from('bookings')
+      .select('*, client:users!bookings_client_id_fkey(*), payments:payment_transactions(*)')
+      .eq('id', id)
+      .single()
 
-    if (!existingBooking) {
+    if (existingError || !existingBooking) {
       return NextResponse.json(
         createErrorResponse('Booking not found', 'BOOKING_NOT_FOUND'),
         { status: 404 }
@@ -234,7 +189,7 @@ export async function DELETE(
     }
 
     // Check if there are verified payments
-    const verifiedPayments = existingBooking.payments.filter(p => p.status === 'VERIFIED')
+    const verifiedPayments = existingBooking.payments.filter((p: any) => p.status === 'VERIFIED')
     if (verifiedPayments.length > 0) {
       return NextResponse.json(
         createErrorResponse('Cannot cancel booking with verified payments', 'HAS_PAYMENTS'),
@@ -243,13 +198,19 @@ export async function DELETE(
     }
 
     // Update booking status to cancelled (soft delete)
-    const cancelledBooking = await db.booking.update({
-      where: { id },
-      data: {
+    const { data: cancelledBooking, error: cancelError } = await db
+      .from('bookings')
+      .update({
         status: 'CANCELLED',
-        updated_at: new Date()
-      }
-    })
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (cancelError || !cancelledBooking) {
+      throw new Error(cancelError?.message || 'Failed to cancel booking')
+    }
 
     // Create audit log
     const auditData = createAuditLog(
@@ -267,9 +228,13 @@ export async function DELETE(
       ipAddress
     )
 
-    await db.auditLog.create({
-      data: auditData
-    })
+    const { error: auditError } = await db
+      .from('audit_logs')
+      .insert(auditData)
+
+    if (auditError) {
+      console.error('Failed to create audit log:', auditError)
+    }
 
     return NextResponse.json(
       createSuccessResponse(cancelledBooking, 'Booking cancelled successfully')

@@ -33,7 +33,8 @@ import {
   FileText,
   Download,
   Search,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import type { DatabaseExtended, VettingApplicationWithUser } from '@/lib/types/database';
 

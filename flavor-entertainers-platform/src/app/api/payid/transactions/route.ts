@@ -75,8 +75,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create transaction record
-    const transactionId = `payid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Create transaction record with cryptographically secure random ID
+    const crypto = require('crypto');
+    const transactionId = `payid_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
 
     const { data: transaction, error: transactionError } = await supabase
       .from('payid_transactions')
@@ -185,38 +186,57 @@ export async function GET(request: NextRequest) {
 
     const payidAccountIds = payidAccounts.map(account => account.id);
 
-    // Build query
-    let query = supabase
+    // Build query - Fixed SQL injection: use multiple queries instead of OR with string interpolation
+    const senderQuery = supabase
       .from('payid_transactions')
       .select(`
         *,
         sender_payid:payid_accounts!sender_payid_id(payid_identifier, account_name),
         recipient_payid:payid_accounts!recipient_payid_id(payid_identifier, account_name)
       `)
-      .or(`sender_payid_id.in.(${payidAccountIds.join(',')}),recipient_payid_id.in.(${payidAccountIds.join(',')})`)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .in('sender_payid_id', payidAccountIds);
+
+    const recipientQuery = supabase
+      .from('payid_transactions')
+      .select(`
+        *,
+        sender_payid:payid_accounts!sender_payid_id(payid_identifier, account_name),
+        recipient_payid:payid_accounts!recipient_payid_id(payid_identifier, account_name)
+      `)
+      .in('recipient_payid_id', payidAccountIds);
 
     if (status) {
-      query = query.eq('status', status);
+      senderQuery.eq('status', status);
+      recipientQuery.eq('status', status);
     }
 
-    const { data: transactions, error: fetchError } = await query;
+    const [senderResult, recipientResult] = await Promise.all([senderQuery, recipientQuery]);
 
-    if (fetchError) {
-      console.error('Transaction fetch error:', fetchError);
+    if (senderResult.error && recipientResult.error) {
+      console.error('Transaction fetch error:', senderResult.error);
       return NextResponse.json(
         { error: 'Failed to fetch transactions' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      transactions: transactions || [],
-      total: transactions?.length || 0,
-      has_more: (transactions?.length || 0) === limit
-    });
+    // Merge and deduplicate results
+    const allTransactions = [
+      ...(senderResult.data || []),
+      ...(recipientResult.data || [])
+    ];
+    const uniqueTransactions = Array.from(
+      new Map(allTransactions.map(t => [t.id, t])).values()
+    ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+    // Apply pagination manually
+    const paginatedTransactions = uniqueTransactions.slice(offset, offset + limit);
+
+    return NextResponse.json({
+      transactions: paginatedTransactions,
+      total: uniqueTransactions.length,
+      has_more: uniqueTransactions.length > offset + limit
+    });
   } catch (error) {
     console.error('Transaction fetch error:', error);
     return NextResponse.json(
@@ -227,33 +247,19 @@ export async function GET(request: NextRequest) {
 }
 
 async function processPayIDPayment(transaction: any, senderPayID: any, recipientPayID: any) {
-  try {
-    // In a real implementation, this would integrate with the PayID Registry and bank APIs
-    // For demo purposes, we'll simulate the payment process
+  // TODO: CRITICAL - Implement real PayID/NPP payment processing
+  // This must integrate with:
+  // 1. PayID Registry for recipient resolution
+  // 2. Bank APIs for actual fund transfers
+  // 3. NPP (New Payments Platform) for real-time payments
+  //
+  // DO NOT use in production without implementing actual payment processing
+  // Current implementation is a placeholder only
 
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Simulate success/failure (95% success rate for demo)
-    const isSuccess = Math.random() > 0.05;
-
-    if (isSuccess) {
-      return {
-        success: true,
-        external_transaction_id: `ext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      };
-    } else {
-      return {
-        success: false,
-        error: 'Payment declined by bank'
-      };
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: 'Payment processing failed'
-    };
-  }
+  return {
+    success: false,
+    error: 'PayID payment processing not yet implemented. Please contact support to set up payment integration.'
+  };
 }
 
 async function updateBookingPaymentStatus(bookingId: string, status: string, transactionId: string) {
