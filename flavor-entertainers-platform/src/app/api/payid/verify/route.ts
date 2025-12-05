@@ -117,29 +117,19 @@ async function verifyCode(payidAccount: any, code?: string): Promise<{ success: 
     return { success: false, error: 'Verification code required' };
   }
 
-  // In a real implementation, this would verify against the PayID Registry
-  // For demo purposes, we'll accept a specific code
-  const validCodes = ['123456', '000000', 'test123'];
+  // TODO: Implement real verification against the PayID Registry/NPP
+  // This is a placeholder - DO NOT use in production without implementing proper verification
+  // The verification should check against codes stored in the database with expiry times
 
-  if (validCodes.includes(code)) {
-    return { success: true };
-  } else {
-    return { success: false, error: 'Invalid verification code' };
-  }
+  return { success: false, error: 'PayID verification not yet implemented. Please contact support.' };
 }
 
 async function processDocumentVerification(payidAccount: any): Promise<{ success: boolean; error?: string }> {
-  // In a real implementation, this would process uploaded documents
-  // For demo purposes, we'll simulate automatic approval
+  // TODO: Implement real document verification with ID checks, facial recognition, etc.
+  // This should integrate with a KYC service provider
+  // DO NOT use automatic approval in production
 
-  try {
-    // Simulate document processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: 'Document verification failed' };
-  }
+  return { success: false, error: 'Document verification not yet implemented. Please contact support.' };
 }
 
 async function logPayIDEvent(payidAccountId: string, eventType: string, metadata: any) {

@@ -1,11 +1,16 @@
 import twilio from 'twilio';
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID!;
-const authToken = process.env.TWILIO_AUTH_TOKEN!;
-const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER!;
-const adminWhatsapp = process.env.ADMIN_WHATSAPP!;
+// Validate Twilio environment variables
+const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
+const authToken = process.env.TWILIO_AUTH_TOKEN || '';
+const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER || '';
+const adminWhatsapp = process.env.ADMIN_WHATSAPP || '';
 
-const client = twilio(accountSid, authToken);
+// Check if Twilio is properly configured
+const isTwilioConfigured = accountSid.startsWith('AC') && authToken.length > 10;
+
+// Only initialize Twilio client if properly configured
+const client = isTwilioConfigured ? twilio(accountSid, authToken) : null;
 
 export interface WhatsAppMessage {
   to: string;
@@ -16,6 +21,11 @@ export interface WhatsAppMessage {
  * Send a WhatsApp message via Twilio
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
+  if (!client) {
+    console.warn('Twilio not configured - WhatsApp notification skipped');
+    return; // Silently skip if Twilio not configured
+  }
+
   try {
     // Ensure phone number is in WhatsApp format
     const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;

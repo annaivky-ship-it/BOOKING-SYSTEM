@@ -66,20 +66,27 @@ export default function BookingForm({ performer, client }: BookingFormProps) {
         throw new Error('Please upload a payment receipt');
       }
 
-      // Create booking
+      // Calculate end time from start time and duration
+      const startTime = formData.eventTime;
+      const durationHours = parseFloat(formData.durationHours);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes + (durationHours * 60);
+      const endHours = Math.floor(totalMinutes / 60) % 24;
+      const endMinutes = totalMinutes % 60;
+      const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+
+      // Create booking with correct field names matching API validator
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           performer_id: performer.id,
           event_type: formData.eventType,
-          event_name: formData.eventName,
           event_date: formData.eventDate,
-          event_time: formData.eventTime,
-          duration_hours: parseFloat(formData.durationHours),
-          location: formData.location,
-          special_requirements: formData.specialRequirements || null,
-          hourly_rate: parseFloat(formData.hourlyRate),
+          event_start_time: startTime,
+          event_end_time: endTime,
+          event_location: formData.location,
+          special_requests: formData.specialRequirements || undefined,
           total_amount: parseFloat(formData.totalAmount),
         }),
       });

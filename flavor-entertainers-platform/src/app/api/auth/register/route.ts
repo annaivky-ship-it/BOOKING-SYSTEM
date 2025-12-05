@@ -21,11 +21,13 @@ export async function POST(request: NextRequest) {
     const ipAddress = getClientIpAddress(request)
 
     // Check if user already exists
-    const existingUser = await db.user.findUnique({
-      where: { email }
-    })
+    const { data: existingUser, error: existingUserError } = await db
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
 
-    if (existingUser) {
+    if (existingUser && !existingUserError) {
       return NextResponse.json(
         createErrorResponse('User with this email already exists', 'USER_EXISTS'),
         { status: 409 }
@@ -33,15 +35,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user
-    const user = await db.user.create({
-      data: {
+    const { data: user, error: userError } = await db
+      .from('users')
+      .insert({
         email,
         role,
         phone,
         whatsapp,
         legal_name
-      }
-    })
+      })
+      .select()
+      .single()
+
+    if (userError || !user) {
+      throw new Error(userError?.message || 'Failed to create user')
+    }
 
     // Create audit log
     const auditData = createAuditLog(
@@ -59,9 +67,13 @@ export async function POST(request: NextRequest) {
       ipAddress
     )
 
-    await db.auditLog.create({
-      data: auditData
-    })
+    const { error: auditError } = await db
+      .from('audit_logs')
+      .insert(auditData)
+
+    if (auditError) {
+      console.error('Failed to create audit log:', auditError)
+    }
 
     // Return user without sensitive data
     const { ...safeUser } = user

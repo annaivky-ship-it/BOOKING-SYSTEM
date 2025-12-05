@@ -28,14 +28,26 @@ export async function isBlacklisted(
 ): Promise<boolean> {
   if (!email && !phone) return false;
 
-  const { data, error } = await supabase
+  // Fixed SQL injection: Use separate queries instead of string interpolation
+  let query = supabase
     .from('blacklist')
     .select('id')
-    .or(`email.eq.${email},phone.eq.${phone}`)
-    .limit(1)
-    .single();
+    .limit(1);
 
-  return !!data && !error;
+  if (email && phone) {
+    // Check both email and phone
+    const [emailResult, phoneResult] = await Promise.all([
+      supabase.from('blacklist').select('id').eq('email', email).limit(1).maybeSingle(),
+      supabase.from('blacklist').select('id').eq('phone', phone).limit(1).maybeSingle()
+    ]);
+    return !!(emailResult.data || phoneResult.data);
+  } else if (email) {
+    const { data } = await query.eq('email', email).maybeSingle();
+    return !!data;
+  } else {
+    const { data } = await query.eq('phone', phone).maybeSingle();
+    return !!data;
+  }
 }
 
 /**
@@ -93,14 +105,33 @@ export function formatPhoneForWhatsApp(phone: string): string {
 }
 
 /**
- * Generate a short, readable ID
+ * Generate a cryptographically secure short, readable ID
+ * NOTE: This function is currently unused but kept for future use
  */
 export function generateShortId(length: number = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+
+  // Use crypto.getRandomValues for cryptographically secure randomness
+  if (typeof window !== 'undefined' && window.crypto) {
+    // Browser environment
+    const randomValues = new Uint32Array(length);
+    window.crypto.getRandomValues(randomValues);
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(randomValues[i] % chars.length);
+    }
+  } else if (typeof require !== 'undefined') {
+    // Node.js environment
+    const crypto = require('crypto');
+    const randomBytes = crypto.randomBytes(length);
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(randomBytes[i] % chars.length);
+    }
+  } else {
+    // Fallback (should never happen in Next.js)
+    throw new Error('Cryptographic random number generation not available');
   }
+
   return result;
 }
 

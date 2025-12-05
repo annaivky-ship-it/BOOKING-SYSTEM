@@ -24,69 +24,68 @@ export async function GET(request: NextRequest) {
     const { page, limit } = paginationData
     const offset = (page - 1) * limit
 
-    // Build query conditions
-    const where: any = {}
+    // Build query for performers
+    let performersQuery = db
+      .from('performers')
+      .select('*, user:users!performers_user_id_fkey(id, email, phone, whatsapp, legal_name, created_at)')
+      .range(offset, offset + limit - 1)
+      .order('verified', { ascending: false })
+      .order('rating', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (filterData.category) {
-      where.categories = {
-        has: filterData.category
-      }
+      performersQuery = performersQuery.contains('categories', [filterData.category])
     }
 
     if (filterData.location_area) {
-      where.location_area = {
-        contains: filterData.location_area,
-        mode: 'insensitive'
-      }
+      performersQuery = performersQuery.ilike('location_area', `%${filterData.location_area}%`)
     }
 
     if (filterData.availability_status) {
-      where.availability_status = filterData.availability_status
+      performersQuery = performersQuery.eq('availability_status', filterData.availability_status)
     }
 
     if (filterData.verified !== undefined) {
-      where.verified = filterData.verified
+      performersQuery = performersQuery.eq('verified', filterData.verified)
     }
 
-    // Get performers with related data
-    const [performers, total] = await Promise.all([
-      db.performer.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              phone: true,
-              whatsapp: true,
-              legal_name: true,
-              created_at: true
-            }
-          },
-          services: {
-            include: {
-              service: true
-            },
-            where: {
-              active: true
-            }
-          },
-          _count: {
-            select: {
-              bookings: true
-            }
-          }
-        },
-        skip: offset,
-        take: limit,
-        orderBy: [
-          { verified: 'desc' },
-          { rating: 'desc' },
-          { created_at: 'desc' }
-        ]
-      }),
-      db.performer.count({ where })
+    // Build count query
+    let countQuery = db
+      .from('performers')
+      .select('*', { count: 'exact', head: true })
+
+    if (filterData.category) {
+      countQuery = countQuery.contains('categories', [filterData.category])
+    }
+
+    if (filterData.location_area) {
+      countQuery = countQuery.ilike('location_area', `%${filterData.location_area}%`)
+    }
+
+    if (filterData.availability_status) {
+      countQuery = countQuery.eq('availability_status', filterData.availability_status)
+    }
+
+    if (filterData.verified !== undefined) {
+      countQuery = countQuery.eq('verified', filterData.verified)
+    }
+
+    // Execute queries in parallel
+    const [performersResult, countResult] = await Promise.all([
+      performersQuery,
+      countQuery
     ])
+
+    if (performersResult.error) {
+      throw new Error(performersResult.error.message)
+    }
+
+    if (countResult.error) {
+      throw new Error(countResult.error.message)
+    }
+
+    const performers = performersResult.data || []
+    const total = countResult.count || 0
 
     return NextResponse.json(
       createSuccessResponse({
@@ -126,11 +125,13 @@ export async function POST(request: NextRequest) {
     const ipAddress = getClientIpAddress(request)
 
     // Check if user exists and is a performer
-    const user = await db.user.findUnique({
-      where: { id: user_id }
-    })
+    const { data: user, error: userError } = await db
+      .from('users')
+      .select('*')
+      .eq('id', user_id)
+      .single()
 
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json(
         createErrorResponse('User not found', 'USER_NOT_FOUND'),
         { status: 404 }
@@ -145,11 +146,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if performer profile already exists
-    const existingProfile = await db.performer.findUnique({
-      where: { user_id }
-    })
+    const { data: existingProfile, error: existingError } = await db
+      .from('performers')
+      .select('*')
+      .eq('user_id', user_id)
+      .single()
 
-    if (existingProfile) {
+    if (existingProfile && !existingError) {
       return NextResponse.json(
         createErrorResponse('Performer profile already exists', 'PROFILE_EXISTS'),
         { status: 409 }
@@ -157,23 +160,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Create performer profile
-    const performer = await db.performer.create({
-      data: {
+    const { data: performer, error: performerError } = await db
+      .from('performers')
+      .insert({
         user_id,
         ...performerData
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            phone: true,
-            whatsapp: true,
-            legal_name: true
-          }
-        }
-      }
-    })
+      })
+      .select('*, user:users!performers_user_id_fkey(id, email, phone, whatsapp, legal_name)')
+      .single()
+
+    if (performerError || !performer) {
+      throw new Error(performerError?.message || 'Failed to create performer profile')
+    }
 
     // Create audit log
     const auditData = createAuditLog(
@@ -191,9 +189,13 @@ export async function POST(request: NextRequest) {
       ipAddress
     )
 
-    await db.auditLog.create({
-      data: auditData
-    })
+    const { error: auditError } = await db
+      .from('audit_logs')
+      .insert(auditData)
+
+    if (auditError) {
+      console.error('Failed to create audit log:', auditError)
+    }
 
     return NextResponse.json(
       createSuccessResponse(performer, 'Performer profile created successfully'),
