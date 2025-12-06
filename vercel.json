@@ -1,6 +1,7 @@
 {
-  "buildCommand": "cd booking-platform && npm run build",
-  "installCommand": "cd booking-platform && npm install --legacy-peer-deps",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
-  "outputDirectory": "booking-platform/.next"
+  "outputDirectory": ".next"
 }
