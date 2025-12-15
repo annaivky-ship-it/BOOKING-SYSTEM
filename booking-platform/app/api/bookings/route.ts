@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     // TODO: Add performer validation once database schema is set up
 
     // Create booking
-    const { data: booking, error: bookingError } = await serviceClient
+    const { data: booking, error: bookingError } = await (serviceClient as any)
       .from('bookings')
       .insert({
         client_id: user.id,
