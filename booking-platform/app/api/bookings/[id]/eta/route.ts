@@ -31,10 +31,14 @@ export async function POST(
 
     // Get user role from auth metadata
     const userRole = user.user_metadata?.role || user.app_metadata?.role;
+    const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Performer';
 
     if (userRole !== 'performer') {
       return NextResponse.json({ error: 'Only performers can submit ETA' }, { status: 403 });
     }
+
+    // Create profile object for backwards compatibility
+    const profile = { full_name: userName, role: userRole };
 
     // Parse and validate request body
     const body = await request.json();
@@ -53,7 +57,7 @@ export async function POST(
     const data = validationResult.data;
 
     // Get booking with client details
-    const { data: booking, error: bookingError } = await serviceClient
+    const { data: booking, error: bookingError } = await (serviceClient as any)
       .from('bookings')
       .select(`
         *,
@@ -76,7 +80,7 @@ export async function POST(
     }
 
     // Update booking with ETA
-    const { data: updatedBooking, error: updateError } = await serviceClient
+    const { data: updatedBooking, error: updateError } = await (serviceClient as any)
       .from('bookings')
       .update({
         performer_eta: data.eta,
