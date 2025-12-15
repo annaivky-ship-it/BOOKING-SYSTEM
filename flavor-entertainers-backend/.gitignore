@@ -167,4 +167,5 @@ docs/generated/
 dump.rdb
 
 # Sentry
-.sentryclirc
+.sentryclrc
+node-compile-cache/

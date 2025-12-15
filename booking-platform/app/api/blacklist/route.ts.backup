@@ -93,15 +93,15 @@ export async function POST(request: NextRequest) {
     let existing = null;
     if (data.email && data.phone) {
       const [emailCheck, phoneCheck] = await Promise.all([
-        (serviceClient as any).from('blacklist').select('id').eq('email', data.email).maybeSingle(),
-        (serviceClient as any).from('blacklist').select('id').eq('phone', data.phone).maybeSingle()
+        serviceClient.from('blacklist').select('id').eq('email', data.email).maybeSingle(),
+        serviceClient.from('blacklist').select('id').eq('phone', data.phone).maybeSingle()
       ]);
       existing = emailCheck.data || phoneCheck.data;
     } else if (data.email) {
-      const result = await (serviceClient as any).from('blacklist').select('id').eq('email', data.email).maybeSingle();
+      const result = await serviceClient.from('blacklist').select('id').eq('email', data.email).maybeSingle();
       existing = result.data;
     } else if (data.phone) {
-      const result = await (serviceClient as any).from('blacklist').select('id').eq('phone', data.phone).maybeSingle();
+      const result = await serviceClient.from('blacklist').select('id').eq('phone', data.phone).maybeSingle();
       existing = result.data;
     }
 

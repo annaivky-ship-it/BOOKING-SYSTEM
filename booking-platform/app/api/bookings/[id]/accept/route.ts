@@ -28,19 +28,19 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Get user role from auth metadata
+    const userRole = user.user_metadata?.role || user.app_metadata?.role;
+    const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Performer';
 
-    if (profileError || !profile || profile.role !== 'performer') {
+    if (userRole !== 'performer') {
       return NextResponse.json({ error: 'Only performers can accept bookings' }, { status: 403 });
     }
 
+    // Create profile object for backwards compatibility
+    const profile = { full_name: userName, role: userRole };
+
     // Get booking
-    const { data: booking, error: bookingError } = await serviceClient
+    const { data: booking, error: bookingError } = await (serviceClient as any)
       .from('bookings')
       .select(`
         *,
@@ -63,7 +63,7 @@ export async function POST(
     }
 
     // Update booking status
-    const { data: updatedBooking, error: updateError } = await serviceClient
+    const { data: updatedBooking, error: updateError } = await (serviceClient as any)
       .from('bookings')
       .update({
         status: 'accepted',
