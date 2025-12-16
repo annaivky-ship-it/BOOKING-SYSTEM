@@ -1,0 +1,152 @@
+
+import React, { useMemo, useState } from 'react';
+import type { Performer, Service } from '../types';
+import { allServices } from '../data/mockData';
+import { ArrowLeft, Briefcase, Tag, Sparkles, Info, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface PerformerProfileProps {
+  performer: Performer;
+  onBack: () => void;
+  onBook: (performer: Performer) => void;
+}
+
+const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook }) => {
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+
+  const performerServices = useMemo(() => {
+    return allServices.filter(service => performer.service_ids.includes(service.id));
+  }, [performer.service_ids]);
+
+  const servicesByCategory = useMemo(() => {
+    return performerServices.reduce((acc, service) => {
+      (acc[service.category] = acc[service.category] || []).push(service);
+      return acc;
+    }, {} as Record<string, typeof performerServices>);
+  }, [performerServices]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedServiceId(prev => prev === id ? null : id);
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <button
+        onClick={onBack}
+        className="mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2"
+      >
+        <ArrowLeft className="h-5 w-5" />
+        Back to Gallery
+      </button>
+
+      <div className="grid md:grid-cols-5 gap-8 lg:gap-12">
+        <div className="md:col-span-2">
+          <div className="sticky top-28">
+            <div className="relative">
+                <img
+                  src={performer.photo_url}
+                  alt={performer.name}
+                  className="rounded-2xl shadow-2xl shadow-black/50 w-full h-auto object-cover aspect-[3/4] border-4 border-zinc-800"
+                />
+                <div className="absolute -inset-2 rounded-2xl bg-orange-500/30 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="md:col-span-3">
+          <h1 className="text-5xl lg:text-7xl font-extrabold text-white mb-2">{performer.name}</h1>
+          <p className="text-2xl text-orange-400 font-medium mb-6">{performer.tagline}</p>
+          
+          <button 
+             onClick={() => onBook(performer)}
+             className="mb-10 btn-primary w-full md:w-auto py-3 px-8 text-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transform hover:-translate-y-1 transition-all"
+          >
+            <Sparkles className="h-5 w-5" />
+            Book {performer.name}
+           </button>
+
+          <div className="prose prose-invert prose-lg max-w-none text-zinc-300 mb-10 leading-relaxed">
+            <p>{performer.bio}</p>
+          </div>
+          
+          <div className="mb-10">
+            <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+              <Briefcase className="h-7 w-7 text-orange-500" />
+              Services Offered
+            </h3>
+            <div className="space-y-6">
+              {Object.entries(servicesByCategory).map(([category, services]: [string, Service[]]) => (
+                <div key={category} className="card-base !p-6 !bg-zinc-900/50">
+                  <h4 className="text-xl font-semibold text-orange-400 mb-4 border-b border-zinc-700 pb-3">{category}</h4>
+                  <div className="space-y-4">
+                    {services.map((service) => {
+                      const hasDetails = service.booking_notes || service.min_duration_hours || service.duration_minutes;
+                      const isExpanded = expandedServiceId === service.id;
+
+                      return (
+                        <div key={service.id} className="text-zinc-300 border-b border-zinc-800/50 last:border-0 pb-4 last:pb-0">
+                          <div 
+                            className={`flex justify-between items-start gap-4 ${hasDetails ? 'cursor-pointer group' : ''}`}
+                            onClick={() => hasDetails && toggleExpand(service.id)}
+                          >
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                    <p className="font-bold text-white">{service.name}</p>
+                                    {hasDetails && (
+                                        <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                                            <ChevronDown size={16} className={`text-zinc-500 group-hover:text-orange-400 ${isExpanded ? 'text-orange-400' : ''}`} />
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-sm text-zinc-400 mt-1">{service.description}</p>
+                            </div>
+                            <span className="bg-orange-500/20 text-orange-300 px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap">
+                              ${service.rate}
+                              {service.rate_type === 'per_hour' ? '/hr' : ' flat'}
+                            </span>
+                          </div>
+                          
+                          {isExpanded && hasDetails && (
+                              <div className="mt-3 bg-zinc-950/50 border border-zinc-800/50 p-3 rounded-md text-sm animate-fade-in space-y-2">
+                                  {service.min_duration_hours && (
+                                      <div className="flex items-center gap-2 text-zinc-300">
+                                          <Clock size={14} className="text-orange-400"/>
+                                          <span>Minimum Booking: <strong>{service.min_duration_hours} hour{service.min_duration_hours > 1 ? 's' : ''}</strong></span>
+                                      </div>
+                                  )}
+                                  {service.duration_minutes && (
+                                      <div className="flex items-center gap-2 text-zinc-300">
+                                          <Clock size={14} className="text-orange-400"/>
+                                          <span>Duration: <strong>{service.duration_minutes} minutes</strong></span>
+                                      </div>
+                                  )}
+                                  {service.booking_notes && (
+                                      <div className="flex items-start gap-2 text-zinc-300">
+                                          <AlertCircle size={14} className="text-orange-400 mt-0.5 flex-shrink-0"/>
+                                          <span>Note: {service.booking_notes}</span>
+                                      </div>
+                                  )}
+                              </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+           <button 
+             onClick={() => onBook(performer)}
+             className="btn-primary w-full md:w-auto py-4 px-10 text-lg flex items-center justify-center gap-3"
+            >
+            <Sparkles />
+            Book {performer.name} Now
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PerformerProfile;
