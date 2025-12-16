@@ -32,7 +32,7 @@ interface NotificationSettings {
 const App: React.FC = () => {
   const [ageVerified, setAgeVerified] = useState(false);
   const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth' | 'services_page' | 'contact_us'>('available_now');
-  const [bookingOrigin, setBookingOrigin] = useState<GalleryView>('available_now');
+  const [bookingOrigin, setBookingOrigin] = useState<GalleryView | 'admin_dashboard'>('available_now');
   const [viewedPerformer, setViewedPerformer] = useState<Performer | null>(null);
   const [selectedForBooking, setSelectedForBooking] = useState<Performer[]>([]);
   const [viewRole, setViewRole] = useState<Role>('user');
@@ -492,7 +492,7 @@ const App: React.FC = () => {
 
   const handleViewProfile = (performer: Performer) => {
     window.scrollTo(0, 0);
-    if (view === 'available_now' || view === 'future_bookings') {
+    if (view === 'available_now' || view === 'future_bookings' || view === 'admin_dashboard') {
         setBookingOrigin(view);
     }
     setViewedPerformer(performer);
@@ -641,7 +641,15 @@ const App: React.FC = () => {
       case 'auth':
         return <Auth onBack={() => setView('available_now')} />;
       case 'profile':
-        return viewedPerformer && <PerformerProfile performer={viewedPerformer} onBack={handleReturnToGallery} onBook={handleBookSinglePerformer} />;
+        return viewedPerformer && (
+            <PerformerProfile 
+                performer={viewedPerformer} 
+                onBack={handleReturnToGallery} 
+                onBook={handleBookSinglePerformer}
+                isSelected={selectedForBooking.some(p => p.id === viewedPerformer.id)}
+                onToggleSelection={handleTogglePerformerSelection}
+            />
+        );
       case 'booking':
         const approvedDNS = doNotServeList.filter(e => e.status === 'approved');
         return selectedForBooking.length > 0 && (
@@ -680,6 +688,7 @@ const App: React.FC = () => {
             communications={communications} 
             onAdminDecisionForPerformer={handleAdminBookingDecisionForPerformer}
             onAdminChangePerformer={handleAdminChangePerformer}
+            onViewPerformer={handleViewProfile}
           />;
       case 'performer_dashboard':
         if (!['performer', 'admin'].includes(userProfile?.role || '')) return <p>Access Denied</p>;

@@ -2,15 +2,17 @@
 import React, { useMemo, useState } from 'react';
 import type { Performer, Service } from '../types';
 import { allServices } from '../data/mockData';
-import { ArrowLeft, Briefcase, Tag, Sparkles, Info, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Briefcase, Tag, Sparkles, Info, Clock, AlertCircle, ChevronDown, ChevronUp, Plus, Check } from 'lucide-react';
 
 interface PerformerProfileProps {
   performer: Performer;
   onBack: () => void;
   onBook: (performer: Performer) => void;
+  isSelected: boolean;
+  onToggleSelection: (performer: Performer) => void;
 }
 
-const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook }) => {
+const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook, isSelected, onToggleSelection }) => {
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
 
   const performerServices = useMemo(() => {
@@ -56,13 +58,22 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
           <h1 className="text-5xl lg:text-7xl font-extrabold text-white mb-2">{performer.name}</h1>
           <p className="text-2xl text-orange-400 font-medium mb-6">{performer.tagline}</p>
           
-          <button 
-             onClick={() => onBook(performer)}
-             className="mb-10 btn-primary w-full md:w-auto py-3 px-8 text-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transform hover:-translate-y-1 transition-all"
-          >
-            <Sparkles className="h-5 w-5" />
-            Book {performer.name}
-           </button>
+          <div className="flex flex-wrap gap-4 mb-10">
+             <button 
+               onClick={() => onBook(performer)}
+               className="btn-primary flex-1 md:flex-none py-3 px-8 text-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transform hover:-translate-y-1 transition-all"
+            >
+              <Sparkles className="h-5 w-5" />
+              Book Solo Now
+             </button>
+             <button
+                onClick={() => onToggleSelection(performer)}
+                className={`flex-1 md:flex-none py-3 px-8 text-lg flex items-center justify-center gap-2 rounded-lg font-semibold transition-all border ${isSelected ? 'bg-green-600 border-green-500 text-white hover:bg-green-700' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+             >
+                {isSelected ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                {isSelected ? 'Added to Booking' : 'Add to Group Booking'}
+             </button>
+          </div>
 
           <div className="prose prose-invert prose-lg max-w-none text-zinc-300 mb-10 leading-relaxed">
             <p>{performer.bio}</p>
@@ -135,14 +146,6 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
               ))}
             </div>
           </div>
-          
-           <button 
-             onClick={() => onBook(performer)}
-             className="btn-primary w-full md:w-auto py-4 px-10 text-lg flex items-center justify-center gap-3"
-            >
-            <Sparkles />
-            Book {performer.name} Now
-           </button>
         </div>
       </div>
     </div>

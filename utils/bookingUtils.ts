@@ -1,3 +1,4 @@
+
 import { allServices } from '../data/mockData';
 import { DEPOSIT_PERCENTAGE, REFERRAL_FEE_PERCENTAGE } from '../constants';
 
@@ -20,7 +21,8 @@ export const calculateBookingCost = (durationHours: number, serviceIds: string[]
         }
     });
     
-    const totalCost = (hourlyCost * numPerformers) + flatCost;
+    // Both hourly and flat costs are per performer
+    const totalCost = (hourlyCost + flatCost) * numPerformers;
     const depositAmount = totalCost * DEPOSIT_PERCENTAGE;
     const referralFee = totalCost * REFERRAL_FEE_PERCENTAGE;
     return { totalCost, depositAmount, referralFee };

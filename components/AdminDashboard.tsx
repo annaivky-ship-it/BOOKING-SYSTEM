@@ -1,6 +1,7 @@
+
 import React, { useMemo, useState } from 'react';
 import { Booking, Performer, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication } from '../types';
-import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, Bell, Eye } from 'lucide-react';
 import { calculateBookingCost } from '../utils/bookingUtils';
 
 interface AdminDashboardProps {
@@ -13,6 +14,7 @@ interface AdminDashboardProps {
   onViewDoNotServe: () => void;
   onAdminDecisionForPerformer: (bookingId: string, decision: 'accepted' | 'declined') => Promise<void>;
   onAdminChangePerformer: (bookingId: string, newPerformerId: number) => Promise<void>;
+  onViewPerformer: (performer: Performer) => void;
 }
 
 const statusClasses: Record<BookingStatus, string> = {
@@ -35,7 +37,7 @@ const bookingStatusOptions: { value: BookingStatus; label: string }[] = [
 
 type AdminTab = 'management' | 'payments' | 'communications';
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, doNotServeList, communications, onUpdateBookingStatus, onUpdateDoNotServeStatus, onViewDoNotServe, onAdminDecisionForPerformer, onAdminChangePerformer }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, doNotServeList, communications, onUpdateBookingStatus, onUpdateDoNotServeStatus, onViewDoNotServe, onAdminDecisionForPerformer, onAdminChangePerformer, onViewPerformer }) => {
   
   const [activeTab, setActiveTab] = useState<AdminTab>('management');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | ''>('');
@@ -65,6 +67,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
 
   const pendingDnsEntries = doNotServeList.filter(entry => entry.status === 'pending');
   const adminComms = communications.filter(c => c.recipient === 'admin');
+  const unreadAlerts = communications.filter(c => c.type === 'system_alert' && !c.read);
   
   const totalBookings = bookings.length;
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
@@ -73,6 +76,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
 
   return (
     <div className="animate-fade-in space-y-8">
+      {unreadAlerts.length > 0 && (
+        <div className="bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-lg flex items-start gap-3">
+            <Bell className="h-6 w-6 text-red-400 mt-0.5 animate-pulse" />
+            <div>
+                <h3 className="text-red-400 font-bold">System Alerts ({unreadAlerts.length})</h3>
+                <p className="text-red-200/80 text-sm mt-1">You have unread system alerts. Please check the Communications Log.</p>
+            </div>
+            <button 
+                onClick={() => setActiveTab('communications')}
+                className="ml-auto text-sm bg-red-900/40 hover:bg-red-900/60 text-red-200 px-3 py-1.5 rounded transition-colors"
+            >
+                View Log
+            </button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-4xl font-bold text-white">Admin Dashboard</h1>
@@ -368,11 +387,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
              {adminComms.length > 0 ? (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 -mr-2">
                   {adminComms.map(comm => (
-                    <div key={comm.id} className="bg-zinc-900/70 p-3 rounded-md text-sm border border-zinc-700/50">
-                        <p className="text-zinc-200">{comm.message}</p>
-                        <div className="text-xs text-zinc-500 mt-2 flex justify-between">
-                            <span>From: <span className="text-orange-400 font-semibold">{comm.sender}</span></span>
-                            <span>{new Date(comm.created_at).toLocaleString()}</span>
+                    <div key={comm.id} className={`p-3 rounded-md text-sm border ${comm.type === 'system_alert' ? 'bg-red-900/10 border-red-500/30' : 'bg-zinc-900/70 border-zinc-700/50'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className={comm.type === 'system_alert' ? 'text-red-200' : 'text-zinc-200'}>{comm.message}</p>
+                                <div className="text-xs text-zinc-500 mt-2 flex gap-3">
+                                    <span>From: <span className="text-orange-400 font-semibold">{comm.sender}</span></span>
+                                    {comm.type === 'system_alert' && <span className="text-red-400 font-bold uppercase text-[10px] border border-red-500/50 px-1 rounded">System Alert</span>}
+                                </div>
+                            </div>
+                            <span className="text-xs text-zinc-500 whitespace-nowrap">{new Date(comm.created_at).toLocaleString()}</span>
                         </div>
                     </div>
                   ))}
@@ -388,12 +412,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       )}
       
        <div className="card-base !p-6">
-         <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-3"><UserCog />Performer Status</h2>
+         <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-3"><UserCog />Performer Profiles</h2>
          <ul className="space-y-2 max-h-60 overflow-y-auto">
             {performers.map(p => (
-                <li key={p.id} className="flex justify-between items-center bg-zinc-900/70 p-3 rounded-md border border-zinc-700/50">
-                    <span className="text-white font-medium">{p.name}</span>
-                    <span className={`capitalize px-2 py-1 text-xs font-semibold rounded-full ${p.status === 'available' ? 'bg-green-500/20 text-green-300' : p.status === 'busy' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-zinc-500/20 text-zinc-300'}`}>{p.status}</span>
+                <li key={p.id} className="flex justify-between items-center bg-zinc-900/70 p-3 rounded-md border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${p.status === 'available' ? 'bg-green-500' : p.status === 'busy' ? 'bg-yellow-500' : 'bg-zinc-500'}`}></div>
+                        <span className="text-white font-medium">{p.name}</span>
+                        <span className="text-xs text-zinc-500 hidden sm:inline-block">({p.status})</span>
+                    </div>
+                    <button 
+                        onClick={() => onViewPerformer(p)}
+                        className="text-xs bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-1.5 px-3 rounded flex items-center gap-2 transition-colors"
+                    >
+                        <Eye size={14} /> View Profile
+                    </button>
                 </li>
             ))}
          </ul>

@@ -6,6 +6,7 @@ import { PAY_ID_EMAIL, PAY_ID_NAME, DEPOSIT_PERCENTAGE } from '../constants';
 import PayIDSimulationModal from './PayIDSimulationModal';
 import InputField from './InputField';
 import { ArrowLeft, User, Mail, Phone, Calendar, Clock, MapPin, PartyPopper, UploadCloud, ShieldCheck, Copy, Send, Briefcase, ListChecks, Info, AlertTriangle, ShieldX, CheckCircle, ChevronDown, FileText, LoaderCircle, DollarSign, Users as UsersIcon, Wallet, CreditCard } from 'lucide-react';
+import { calculateBookingCost } from '../utils/bookingUtils';
 
 export interface BookingFormState {
   fullName: string;
@@ -238,26 +239,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     }, [availableServices]);
 
     const { totalCost, depositAmount } = useMemo(() => {
-        if (form.selectedServices.length === 0 || performers.length === 0) return { totalCost: 0, depositAmount: 0 };
-        
-        const durationNum = Number(form.duration) || 0;
-        let hourlyCost = 0;
-        let flatCost = 0;
-
-        form.selectedServices.forEach(serviceId => {
-            const service = allServices.find(s => s.id === serviceId);
-            if (!service) return;
-
-            if (service.rate_type === 'flat') {
-                flatCost += service.rate;
-            } else if (service.rate_type === 'per_hour') {
-                const hours = Math.max(durationNum, service.min_duration_hours || 0);
-                hourlyCost += service.rate * hours;
-            }
-        });
-        
-        const calculatedTotal = (hourlyCost * performers.length) + flatCost;
-        return { totalCost: calculatedTotal, depositAmount: calculatedTotal * DEPOSIT_PERCENTAGE };
+        return calculateBookingCost(Number(form.duration), form.selectedServices, performers.length);
     }, [form.selectedServices, form.duration, performers.length]);
     
     const validateStep = (step: number): boolean => {
@@ -420,7 +402,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                 {currentStep === 3 && (
                     <div className="space-y-4 card-base !p-6 !bg-zinc-950/50">
                         <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4 flex items-center gap-2">
-                            <ListChecks className="h-6 w-6" /> Select Services
+                            <ListChecks className="h-6 w-6" /> Select Services <span className="text-sm font-normal text-zinc-400 ml-2">(for all {performers.length} performers)</span>
                         </h3>
                         {Object.entries(servicesByCategory).map(([category, services]: [string, Service[]]) => (
                             <div key={category}>
@@ -438,7 +420,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                                             <span className="font-medium text-white">{service.name}</span>
                                             <p className="text-zinc-400">{service.description}</p>
                                             <p className="text-orange-400 font-semibold mt-1">
-                                                ${service.rate} {service.rate_type === 'per_hour' ? '/hr' : 'flat rate'}
+                                                ${service.rate} {service.rate_type === 'per_hour' ? '/hr' : ' flat rate'}
                                             </p>
                                         </div>
                                     </label>
