@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Briefcase, ChevronDown, ShoppingCart, Radio, LoaderCircle, CalendarCheck, Clock, Users, Settings, ListChecks } from 'lucide-react';
@@ -20,7 +21,8 @@ import { api } from './services/api';
 import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, Profile } from './types';
 import { allServices } from './data/mockData';
 import { calculateBookingCost } from './utils/bookingUtils';
-import type { Session } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
+// Supabase types - using placeholder types for demo mode
+type Session = any;
 
 type GalleryView = 'available_now' | 'future_bookings';
 

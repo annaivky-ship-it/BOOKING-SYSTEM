@@ -1,25 +1,14 @@
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
+// Supabase client placeholder - currently in demo mode
+// To enable Supabase, install @supabase/ssr and uncomment the implementation below
+type SupabaseClient = any;
 
-// Declare `process` for the browser environment to satisfy TypeScript.
-// The build tool for this platform is expected to polyfill `process.env`.
-declare const process: {
-  env: {
-    [key: string]: string | undefined;
-    SUPABASE_URL: string;
-    SUPABASE_ANON_KEY: string;
-  }
-};
+const supabase: SupabaseClient | null = null;
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-let supabase: SupabaseClient | null = null;
-
-// Attempt to create a Supabase client only if both URL and anon key are provided
-// and appear to be valid. Otherwise, supabase remains null, and the app will
-// gracefully fall back to Demo Mode.
-if (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseUrl.startsWith('https://')) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-}
+// TODO: Restore Supabase integration after resolving Next.js build compatibility
+// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// if (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseUrl.startsWith('https://')) {
+//     supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+// }
 
 export { supabase };

@@ -3,7 +3,9 @@ import { supabase } from './supabaseClient';
 import { mockPerformers, mockBookings, mockDoNotServeList, mockCommunications } from '../data/mockData';
 import type { Performer, Booking, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PerformerStatus, Profile } from '../types';
 import { BookingFormState } from '../components/BookingProcess';
-import type { Session, User } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
+// Supabase types - using placeholder types for demo mode
+type Session = any;
+type User = any;
 
 
 const isDemoMode = !supabase;
