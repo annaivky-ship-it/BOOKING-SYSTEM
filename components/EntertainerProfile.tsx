@@ -19,6 +19,7 @@ const statusConfig: Record<PerformerStatus, { label: string; classes: string; do
     available: { label: 'Available', classes: 'bg-green-950/80 border-green-500 text-green-400', dot: 'bg-green-500' },
     busy: { label: 'Busy', classes: 'bg-yellow-950/80 border-yellow-500 text-yellow-400', dot: 'bg-yellow-500' },
     offline: { label: 'Offline', classes: 'bg-zinc-950/80 border-zinc-500 text-zinc-400', dot: 'bg-zinc-500' },
+    pending: { label: 'Pending Review', classes: 'bg-purple-950/80 border-purple-500 text-purple-400', dot: 'bg-purple-500' },
 };
 
 const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook, isSelected, onToggleSelection, bookings, canEditStatus, onStatusChange }) => {
@@ -57,6 +58,7 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
           available: 'busy',
           busy: 'offline',
           offline: 'available',
+          pending: 'pending' // Cannot toggle pending via profile page
       };
       onStatusChange(nextStatus[performer.status]);
   };
@@ -97,13 +99,13 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
                 {/* Status Badge / Toggle */}
                 <button
                     onClick={handleStatusToggle}
-                    disabled={!canEditStatus}
-                    className={`absolute top-4 right-4 z-20 px-4 py-2 rounded-full border backdrop-blur-md flex items-center gap-2 shadow-xl transition-all ${statusStyle.classes} ${canEditStatus ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}`}
+                    disabled={!canEditStatus || performer.status === 'pending'}
+                    className={`absolute top-4 right-4 z-20 px-4 py-2 rounded-full border backdrop-blur-md flex items-center gap-2 shadow-xl transition-all ${statusStyle.classes} ${canEditStatus && performer.status !== 'pending' ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}`}
                     title={canEditStatus ? "Click to change status" : `Current status: ${statusStyle.label}`}
                 >
                     <div className={`w-2.5 h-2.5 rounded-full ${statusStyle.dot} animate-pulse shadow-[0_0_8px_currentColor]`}></div>
                     <span className="font-bold text-sm uppercase tracking-wide">{statusStyle.label}</span>
-                    {canEditStatus && <RefreshCcw size={14} className="ml-1 opacity-70" />}
+                    {canEditStatus && performer.status !== 'pending' && <RefreshCcw size={14} className="ml-1 opacity-70" />}
                 </button>
 
                 <div className="absolute -inset-2 rounded-2xl bg-orange-500/30 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>

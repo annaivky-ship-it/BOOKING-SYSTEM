@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-export type PerformerStatus = 'available' | 'busy' | 'offline';
+export type PerformerStatus = 'available' | 'busy' | 'offline' | 'pending';
 export type Role = 'user' | 'performer' | 'admin';
 
 export type BookingStatus = 

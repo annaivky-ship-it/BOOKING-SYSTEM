@@ -144,11 +144,9 @@ const App: React.FC = () => {
     // Client-side filtering based on settings
     if (commData.recipient === 'user') {
         if (commData.type === 'booking_update' && !notificationSettings.bookingUpdates) {
-            console.log("Skipping user notification for booking update due to user settings.");
             return;
         }
         if (commData.type === 'booking_confirmation' && !notificationSettings.confirmations) {
-             console.log("Skipping user notification for booking confirmation due to user settings.");
             return;
         }
     }
@@ -596,9 +594,13 @@ const App: React.FC = () => {
   };
 
   const filteredPerformers = useMemo(() => {
+    // Only show performers who are NOT pending in the public gallery view
+    // Admins can see pending performers in their dashboard separately
+    const publicPerformers = performers.filter(p => p.status !== 'pending');
+
     const basePerformers = view === 'available_now'
-        ? performers.filter(p => p.status === 'available')
-        : performers;
+        ? publicPerformers.filter(p => p.status === 'available')
+        : publicPerformers;
 
     const lowerCaseQuery = searchQuery.toLowerCase().trim();
 
@@ -666,7 +668,7 @@ const App: React.FC = () => {
                         </div>
                         <h2 className="text-3xl font-bold text-white mb-4">Registration Successful!</h2>
                         <p className="text-zinc-400 mb-8">
-                            Your performer profile has been created. You can now sign in to your dashboard to manage your availability and view bookings.
+                            Your application has been received. An admin will review your profile shortly. You can sign in to check your status.
                         </p>
                         <button 
                             onClick={() => { setRegistrationSuccess(false); setView('auth'); }}

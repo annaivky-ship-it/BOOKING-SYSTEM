@@ -359,6 +359,14 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             <div key={currentStep} className="animate-fade-in">
                 {currentStep === 1 && (
                     <div className="space-y-6 card-base !p-6 !bg-zinc-950/50">
+                        {/* Freelance Disclaimer */}
+                         <div className="mb-6 bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 flex items-start gap-3">
+                             <Info className="text-blue-400 mt-1 flex-shrink-0" size={20} />
+                             <p className="text-sm text-blue-200">
+                                 <strong>Please note:</strong> All of the entertainers are freelance workers and availability is subject to change at any time. If the chosen performer is not available, we will suggest other performers for you to choose from.
+                             </p>
+                         </div>
+
                          <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4">Your Details</h3>
                          <InputField icon={<User />} type="text" name="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} required />
                          <InputField icon={<Mail />} type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} required />

@@ -141,7 +141,7 @@ export const api = {
               photo_url: data.photo_url || 'https://images.pexels.com/photos/1540406/pexels-photo-1540406.jpeg?auto=compress&cs=tinysrgb&w=800', // Default if empty
               gallery_urls: [],
               service_ids: data.service_ids,
-              status: 'offline', // Default to offline
+              status: 'pending', // Default to pending for review
               created_at: new Date().toISOString(),
               phone: '+61400000000' // Default dummy phone for registration
           };
@@ -178,7 +178,7 @@ export const api = {
               photo_url: data.photo_url,
               gallery_urls: [],
               service_ids: data.service_ids,
-              status: 'offline'
+              status: 'pending' // Default to pending
           })
           .select()
           .single();

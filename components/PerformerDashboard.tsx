@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Performer, PerformerStatus, Booking, Communication } from '../types';
 import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle, DollarSign, CalendarPlus } from 'lucide-react';
@@ -18,6 +19,7 @@ const statusConfig: Record<PerformerStatus, { color: string; label: string; icon
     available: { color: 'text-green-400', label: 'Available', icon: <ToggleRight size={20}/>, bgColor: 'bg-green-500/20' },
     busy: { color: 'text-yellow-400', label: 'Busy', icon: <ToggleLeft size={20}/>, bgColor: 'bg-yellow-500/20' },
     offline: { color: 'text-zinc-400', label: 'Offline', icon: <Radio size={20}/>, bgColor: 'bg-zinc-500/20' },
+    pending: { color: 'text-purple-400', label: 'Pending Approval', icon: <LoaderCircle size={20}/>, bgColor: 'bg-purple-500/20' },
 };
 
 const bookingStatusClasses: Record<Booking['status'], string> = {
@@ -139,6 +141,8 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
   };
   
   const handleToggleStatus = async () => {
+    if (performer.status === 'pending') return; // Cannot toggle if pending
+    
     setIsTogglingStatus(true);
     try {
       await onToggleStatus(nextStatus[performer.status]);
@@ -151,6 +155,7 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
     available: 'busy',
     busy: 'offline',
     offline: 'available',
+    pending: 'pending' // No change if pending
   };
 
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
@@ -183,20 +188,33 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
         </button>
       </div>
       
+      {performer.status === 'pending' && (
+          <div className="bg-purple-900/30 border border-purple-500 p-4 rounded-lg flex items-start gap-3">
+              <LoaderCircle className="text-purple-400 mt-1 animate-spin" />
+              <div>
+                  <h3 className="font-bold text-purple-300">Account Pending Approval</h3>
+                  <p className="text-zinc-300 text-sm">Your profile is currently under review by our administration team. You will be able to update your availability once approved.</p>
+              </div>
+          </div>
+      )}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="card-base !p-6 lg:col-span-1">
           <h2 className="text-2xl font-semibold text-white mb-4">Your Availability</h2>
           <div className="flex items-center gap-4">
             <p className="text-zinc-300">Current Status:</p>
-            <span className={`font-bold py-1 px-3 rounded-full text-sm ${statusConfig[performer.status].bgColor} ${statusConfig[performer.status].color}`}>{statusConfig[performer.status].label}</span>
+            <span className={`font-bold py-1 px-3 rounded-full text-sm flex items-center gap-2 ${statusConfig[performer.status].bgColor} ${statusConfig[performer.status].color}`}>
+                {statusConfig[performer.status].icon}
+                {statusConfig[performer.status].label}
+            </span>
           </div>
           <button 
             onClick={handleToggleStatus}
-            disabled={isTogglingStatus}
+            disabled={isTogglingStatus || performer.status === 'pending'}
             className="btn-primary mt-6 w-full flex items-center justify-center gap-2"
           >
-            {isTogglingStatus ? <LoaderCircle size={20} className="animate-spin" /> : statusConfig[nextStatus[performer.status]].icon}
-            {isTogglingStatus ? 'Updating...' : `Switch to ${statusConfig[nextStatus[performer.status]].label}`}
+            {isTogglingStatus ? <LoaderCircle size={20} className="animate-spin" /> : (performer.status === 'pending' ? <X size={20}/> : statusConfig[nextStatus[performer.status]].icon)}
+            {isTogglingStatus ? 'Updating...' : (performer.status === 'pending' ? 'Awaiting Approval' : `Switch to ${statusConfig[nextStatus[performer.status]].label}`)}
           </button>
         </div>
          <div className="card-base !p-6 lg:col-span-2">

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Eye, PlusCircle, CheckCircle, Sparkles } from 'lucide-react';
-import type { Performer } from '../types';
+import type { Performer, PerformerStatus } from '../types';
 
 interface PerformerCardProps {
   performer: Performer;
@@ -11,9 +11,11 @@ interface PerformerCardProps {
   isSelected: boolean;
 }
 
-const statusConfig = {
+const statusConfig: Record<PerformerStatus, { dot: string; badge: string }> = {
   available: { dot: 'bg-green-500', badge: 'bg-black/60 border-green-500/50 text-green-400' },
   busy: { dot: 'bg-yellow-500', badge: 'bg-black/60 border-yellow-500/50 text-yellow-400' },
+  offline: { dot: 'bg-zinc-500', badge: 'bg-black/60 border-zinc-500/50 text-zinc-400' },
+  pending: { dot: 'bg-purple-500', badge: 'bg-black/60 border-purple-500/50 text-purple-400' },
 };
 
 const PerformerCard: React.FC<PerformerCardProps> = ({ performer, onViewProfile, onToggleSelection, onBook, isSelected }) => {

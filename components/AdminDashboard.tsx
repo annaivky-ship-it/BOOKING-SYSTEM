@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Booking, Performer, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, Service } from '../types';
-import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, Bell, Eye, PieChart, ToggleRight, ToggleLeft, AlertTriangle, Trash2, Plus, Edit, Image as ImageIcon, Briefcase, Camera } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, Bell, Eye, PieChart, ToggleRight, ToggleLeft, AlertTriangle, Trash2, Plus, Edit, Image as ImageIcon, Briefcase, Camera, UploadCloud, UserCheck } from 'lucide-react';
 import { calculateBookingCost } from '../utils/bookingUtils';
 import { allServices } from '../data/mockData';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -56,12 +56,11 @@ const PerformerManagerModal: React.FC<{
         bio: performer?.bio || '',
         phone: performer?.phone || '',
         photo_url: performer?.photo_url || '',
-        status: performer?.status || 'offline',
+        status: performer?.status || 'available',
         service_ids: performer?.service_ids || [],
         gallery_urls: performer?.gallery_urls || []
     });
     
-    // Reset form when performer prop changes
     React.useEffect(() => {
         setFormData({
             name: performer?.name || '',
@@ -69,7 +68,7 @@ const PerformerManagerModal: React.FC<{
             bio: performer?.bio || '',
             phone: performer?.phone || '',
             photo_url: performer?.photo_url || '',
-            status: performer?.status || 'offline',
+            status: performer?.status || 'available',
             service_ids: performer?.service_ids || [],
             gallery_urls: performer?.gallery_urls || []
         });
@@ -130,60 +129,79 @@ const PerformerManagerModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in">
                 <div className="p-6 border-b border-zinc-800 flex justify-between items-center sticky top-0 bg-zinc-900/95 backdrop-blur z-10">
-                    <h2 className="text-xl font-bold text-white">{performer ? 'Edit Performer' : 'Add New Performer'}</h2>
-                    <button onClick={onClose} className="text-zinc-400 hover:text-white"><X size={24} /></button>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        {performer ? <Edit className="text-orange-500" /> : <Plus className="text-green-500" />}
+                        {performer ? 'Edit Performer Profile' : 'Add New Performer'}
+                    </h2>
+                    <button onClick={onClose} className="text-zinc-400 hover:text-white transition-colors"><X size={24} /></button>
                 </div>
                 <div className="p-6">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2">Basic Info</h3>
+                    <form onSubmit={handleSubmit} className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-5">
+                                <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2">Basic Information</h3>
                                 <InputField icon={<UserCog />} name="name" placeholder="Stage Name" value={formData.name} onChange={handleChange} required />
-                                <InputField icon={<Briefcase />} name="tagline" placeholder="Tagline" value={formData.tagline} onChange={handleChange} required />
+                                <InputField icon={<Briefcase />} name="tagline" placeholder="Tagline (e.g. 'The Life of the Party')" value={formData.tagline} onChange={handleChange} required />
                                 <div className="relative">
                                     <MessageSquare className="absolute left-4 top-4 h-5 w-5 text-zinc-500" />
-                                    <textarea name="bio" placeholder="Bio" value={formData.bio} onChange={handleChange} required className="input-base input-with-icon h-32 resize-y" />
+                                    <textarea name="bio" placeholder="Bio / Description" value={formData.bio} onChange={handleChange} required className="input-base input-with-icon h-32 resize-y" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <InputField icon={<Clock />} name="phone" placeholder="Phone Number" value={formData.phone} onChange={handleChange} />
+                                    <InputField icon={<Clock />} name="phone" placeholder="Phone (e.g. +61...)" value={formData.phone} onChange={handleChange} />
                                     <div className="relative">
                                         <ToggleRight className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
-                                        <select name="status" value={formData.status} onChange={handleChange} className="input-base input-with-icon appearance-none">
+                                        <select name="status" value={formData.status} onChange={handleChange} className="input-base input-with-icon appearance-none cursor-pointer">
                                             <option value="available">Available</option>
                                             <option value="busy">Busy</option>
                                             <option value="offline">Offline</option>
+                                            <option value="pending">Pending</option>
                                         </select>
                                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
                                     </div>
                                 </div>
                             </div>
                             
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2">Media</h3>
-                                <div className="flex flex-col items-center">
-                                    <div className="w-full h-48 bg-zinc-800 rounded-lg border-2 border-dashed border-zinc-600 flex items-center justify-center overflow-hidden relative group">
+                            <div className="space-y-5">
+                                <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2">Photos & Gallery</h3>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-zinc-300">Main Profile Photo</label>
+                                    <div className="w-full h-56 bg-zinc-800 rounded-lg border-2 border-dashed border-zinc-600 flex items-center justify-center overflow-hidden relative group hover:border-orange-500 transition-colors">
                                         {formData.photo_url ? (
-                                            <img src={formData.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                                            <>
+                                                <img src={formData.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <span className="text-white font-semibold flex items-center gap-2"><Camera size={20}/> Change Photo</span>
+                                                </div>
+                                            </>
                                         ) : (
-                                            <div className="flex flex-col items-center text-zinc-500"><ImageIcon /><span className="text-xs mt-1">Main Profile Photo</span></div>
+                                            <div className="flex flex-col items-center text-zinc-500">
+                                                <ImageIcon size={32} />
+                                                <span className="text-xs mt-2">Click to upload main photo</span>
+                                            </div>
                                         )}
                                         <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                                     </div>
                                 </div>
                                 
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-zinc-300">Gallery Images</label>
+                                    <label className="text-sm font-medium text-zinc-300 flex justify-between">
+                                        <span>Gallery Images</span>
+                                        <span className="text-zinc-500 text-xs">{formData.gallery_urls.length} images</span>
+                                    </label>
                                     <div className="grid grid-cols-4 gap-2">
                                         {formData.gallery_urls.map((url, idx) => (
                                             <div key={idx} className="aspect-square relative rounded border border-zinc-700 overflow-hidden group">
                                                 <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
-                                                <button type="button" onClick={() => removeGalleryImage(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
+                                                <button type="button" onClick={() => removeGalleryImage(idx)} className="absolute top-1 right-1 bg-red-600/90 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700">
+                                                    <Trash2 size={12}/>
+                                                </button>
                                             </div>
                                         ))}
-                                        <div className="aspect-square bg-zinc-800 rounded border border-dashed border-zinc-600 flex items-center justify-center relative hover:border-orange-500 transition-colors cursor-pointer">
-                                            <Plus className="text-zinc-500" />
+                                        <div className="aspect-square bg-zinc-800 rounded border border-dashed border-zinc-600 flex items-center justify-center relative hover:border-orange-500 transition-colors cursor-pointer group">
+                                            <Plus className="text-zinc-500 group-hover:text-orange-500" />
                                             <input type="file" accept="image/*" onChange={handleGalleryUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                                         </div>
                                     </div>
@@ -192,16 +210,19 @@ const PerformerManagerModal: React.FC<{
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2 mb-4">Services</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-h-60 overflow-y-auto">
+                            <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4">Services Offered</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-h-60 overflow-y-auto pr-2">
                                 {Object.entries(servicesByCategory).map(([category, services]) => (
                                     <div key={category}>
-                                        <h4 className="text-sm font-bold text-zinc-300 mb-2">{category}</h4>
+                                        <h4 className="text-sm font-bold text-zinc-300 mb-2 uppercase tracking-wider">{category}</h4>
                                         <div className="space-y-2">
                                             {services.map(s => (
-                                                <label key={s.id} className="flex items-center gap-2 cursor-pointer group">
-                                                    <input type="checkbox" checked={formData.service_ids.includes(s.id)} onChange={() => handleServiceToggle(s.id)} className="rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500" />
-                                                    <span className={`text-sm ${formData.service_ids.includes(s.id) ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-300'}`}>{s.name}</span>
+                                                <label key={s.id} className="flex items-center gap-3 cursor-pointer group p-2 rounded hover:bg-zinc-800/50 transition-colors">
+                                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.service_ids.includes(s.id) ? 'bg-orange-500 border-orange-500' : 'border-zinc-600 bg-zinc-800'}`}>
+                                                        {formData.service_ids.includes(s.id) && <Check size={14} className="text-white" />}
+                                                    </div>
+                                                    <input type="checkbox" checked={formData.service_ids.includes(s.id)} onChange={() => handleServiceToggle(s.id)} className="hidden" />
+                                                    <span className={`text-sm ${formData.service_ids.includes(s.id) ? 'text-white font-medium' : 'text-zinc-400 group-hover:text-zinc-300'}`}>{s.name}</span>
                                                 </label>
                                             ))}
                                         </div>
@@ -210,10 +231,10 @@ const PerformerManagerModal: React.FC<{
                             </div>
                         </div>
                         
-                        <div className="flex justify-end pt-4 border-t border-zinc-800">
-                             <button type="button" onClick={onClose} className="mr-4 text-zinc-400 hover:text-white">Cancel</button>
-                             <button type="submit" disabled={isSaving} className="btn-primary px-8 flex items-center gap-2">
-                                 {isSaving ? <LoaderCircle className="animate-spin" size={18}/> : <Check size={18}/>}
+                        <div className="flex justify-end pt-6 border-t border-zinc-800 gap-3">
+                             <button type="button" onClick={onClose} className="px-6 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors font-medium">Cancel</button>
+                             <button type="submit" disabled={isSaving} className="btn-primary px-8 py-2 flex items-center gap-2">
+                                 {isSaving ? <LoaderCircle className="animate-spin" size={20}/> : <Check size={20}/>}
                                  {isSaving ? 'Saving...' : 'Save Performer'}
                              </button>
                         </div>
@@ -253,12 +274,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       } else {
           await api.createPerformer(data);
       }
-      // Force refresh data logic would go here if this wasn't utilizing a parent fetchData hook prop structure
-      // For now, assuming parent or global state update triggers re-render. 
-      // In this demo app structure, API writes to mock data array directly which App.tsx reads on next poll/fetch.
-      // To simulate immediate update we rely on App.tsx fetching or optimistic UI.
-      // Since `api` functions here mock updating the array, we might need to trigger a refresh.
-      window.location.reload(); // Simple brute force refresh for demo to show new data
+      window.location.reload(); 
   };
 
   const handleDeletePerformer = async (id: number) => {
@@ -266,6 +282,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       await api.deletePerformer(id);
       setLoadingState(null);
       setDeleteConfirmation(null);
+      window.location.reload();
+  };
+  
+  const handleApprovePerformer = async (id: number) => {
+      setLoadingState({ type: 'approve-performer', id });
+      // Set to 'offline' initially so they can manage their own availability
+      await api.updatePerformerStatus(id, 'offline');
+      setLoadingState(null);
       window.location.reload();
   };
 
@@ -303,6 +327,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
   const totalBookings = bookings.length;
   const confirmedBookingsCount = bookings.filter(b => b.status === 'confirmed').length;
   const pendingBookings = totalBookings - confirmedBookingsCount - bookings.filter(b => b.status === 'rejected').length;
+  
+  const pendingPerformers = useMemo(() => performers.filter(p => p.status === 'pending'), [performers]);
+  const activePerformers = useMemo(() => performers.filter(p => p.status !== 'pending'), [performers]);
 
 
   return (
@@ -362,7 +389,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card-base !p-6 flex items-center gap-4"><BarChart className="w-10 h-10 text-orange-500" /><div><p className="text-zinc-400 text-sm">Total Bookings</p><p className="text-3xl font-bold text-white">{totalBookings}</p></div></div>
         <div className="card-base !p-6 flex items-center gap-4"><ShieldCheck className="w-10 h-10 text-green-500" /><div><p className="text-zinc-400 text-sm">Confirmed</p><p className="text-3xl font-bold text-white">{confirmedBookingsCount}</p></div></div>
-        <div className="card-base !p-6 flex items-center gap-4"><ShieldAlert className="w-10 h-10 text-yellow-500" /><div><p className="text-zinc-400 text-sm">Pending Actions</p><p className="text-3xl font-bold text-white">{pendingDnsEntries.length + pendingBookings}</p></div></div>
+        <div className="card-base !p-6 flex items-center gap-4"><ShieldAlert className="w-10 h-10 text-yellow-500" /><div><p className="text-zinc-400 text-sm">Pending Actions</p><p className="text-3xl font-bold text-white">{pendingDnsEntries.length + pendingBookings + pendingPerformers.length}</p></div></div>
       </div>
 
 
@@ -612,40 +639,80 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       )}
 
       {activeTab === 'performers' && (
-          <div className="card-base !p-6">
-              <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-semibold text-white">Manage Performers</h2>
-                  <button onClick={() => { setEditingPerformer(undefined); setIsPerformerModalOpen(true); }} className="btn-primary flex items-center gap-2 px-4 py-2">
-                      <Plus size={20} /> Add Performer
-                  </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {performers.map(p => (
-                      <div key={p.id} className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50 flex flex-col gap-4 group hover:border-zinc-500 transition-all">
-                          <div className="flex flex-col items-center text-center">
-                              <div className="relative">
-                                <img src={p.photo_url} alt={p.name} className="w-24 h-24 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
-                                <span className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-zinc-900 ${p.status === 'available' ? 'bg-green-500' : p.status === 'busy' ? 'bg-yellow-500' : 'bg-zinc-500'}`}></span>
+          <div className="space-y-8">
+              {pendingPerformers.length > 0 && (
+                  <div className="card-base !p-6 border-purple-500/30 bg-purple-900/10">
+                      <h2 className="text-2xl font-semibold text-white mb-6 flex items-center gap-3">
+                          <UserCheck className="text-purple-400" />
+                          Pending Approvals
+                          <span className="text-sm bg-purple-500 text-white px-2 py-0.5 rounded-full">{pendingPerformers.length}</span>
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {pendingPerformers.map(p => (
+                              <div key={p.id} className="bg-zinc-900/90 p-4 rounded-lg border border-purple-500/20 flex gap-4 items-center">
+                                  <img src={p.photo_url} alt={p.name} className="w-16 h-16 rounded-full object-cover border border-zinc-700" />
+                                  <div className="flex-grow">
+                                      <h3 className="font-bold text-white text-lg">{p.name}</h3>
+                                      <p className="text-xs text-zinc-400 line-clamp-1">{p.tagline}</p>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                          {p.service_ids.slice(0, 3).map(sid => (
+                                              <span key={sid} className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">{allServices.find(s=>s.id===sid)?.name}</span>
+                                          ))}
+                                          {p.service_ids.length > 3 && <span className="text-[10px] text-zinc-500">+{p.service_ids.length - 3} more</span>}
+                                      </div>
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                      <button onClick={() => handleApprovePerformer(p.id)} disabled={loadingState?.id === p.id} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 w-24">
+                                          {loadingState?.type === 'approve-performer' && loadingState.id === p.id ? <LoaderCircle size={14} className="animate-spin"/> : <><Check size={14}/> Approve</>}
+                                      </button>
+                                      <button onClick={() => setDeleteConfirmation(p.id)} className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 w-24">
+                                          <Trash2 size={14}/> Reject
+                                      </button>
+                                       <button onClick={() => onViewPerformer(p)} className="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 w-24">
+                                          <Eye size={14}/> View
+                                      </button>
+                                  </div>
                               </div>
-                              <h3 className="font-bold text-white text-lg mt-3">{p.name}</h3>
-                              <p className="text-sm text-zinc-400 line-clamp-1">{p.tagline}</p>
-                              <span className={`mt-2 text-xs px-2 py-0.5 rounded-full font-bold border ${p.status === 'available' ? 'bg-green-900/30 text-green-400 border-green-800' : p.status === 'busy' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' : 'bg-zinc-800 text-zinc-400 border-zinc-600'}`}>
-                                  {p.status.toUpperCase()}
-                              </span>
-                          </div>
-                          <div className="flex items-center justify-center gap-2 mt-auto pt-4 border-t border-zinc-700/50">
-                              <button onClick={() => onViewPerformer(p)} className="text-zinc-400 hover:text-white p-2" title="View Public Profile">
-                                  <Eye size={18} />
-                              </button>
-                              <button onClick={() => { setEditingPerformer(p); setIsPerformerModalOpen(true); }} className="text-zinc-400 hover:text-blue-400 p-2 transition-colors" title="Edit Performer">
-                                  <Edit size={18} />
-                              </button>
-                              <button onClick={() => setDeleteConfirmation(p.id)} className="text-zinc-400 hover:text-red-400 p-2 transition-colors" title="Delete Performer">
-                                  <Trash2 size={18} />
-                              </button>
-                          </div>
+                          ))}
                       </div>
-                  ))}
+                  </div>
+              )}
+
+              <div className="card-base !p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-semibold text-white">Manage Performers</h2>
+                      <button onClick={() => { setEditingPerformer(undefined); setIsPerformerModalOpen(true); }} className="btn-primary flex items-center gap-2 px-4 py-2">
+                          <Plus size={20} /> Add Performer
+                      </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {activePerformers.map(p => (
+                          <div key={p.id} className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50 flex flex-col gap-4 group hover:border-zinc-500 transition-all">
+                              <div className="flex flex-col items-center text-center">
+                                  <div className="relative">
+                                    <img src={p.photo_url} alt={p.name} className="w-24 h-24 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                    <span className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-zinc-900 ${p.status === 'available' ? 'bg-green-500' : p.status === 'busy' ? 'bg-yellow-500' : 'bg-zinc-500'}`}></span>
+                                  </div>
+                                  <h3 className="font-bold text-white text-lg mt-3">{p.name}</h3>
+                                  <p className="text-sm text-zinc-400 line-clamp-1">{p.tagline}</p>
+                                  <span className={`mt-2 text-xs px-2 py-0.5 rounded-full font-bold border ${p.status === 'available' ? 'bg-green-900/30 text-green-400 border-green-800' : p.status === 'busy' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' : 'bg-zinc-800 text-zinc-400 border-zinc-600'}`}>
+                                      {p.status.toUpperCase()}
+                                  </span>
+                              </div>
+                              <div className="flex items-center justify-center gap-2 mt-auto pt-4 border-t border-zinc-700/50">
+                                  <button onClick={() => onViewPerformer(p)} className="text-zinc-400 hover:text-white p-2" title="View Public Profile">
+                                      <Eye size={18} />
+                                  </button>
+                                  <button onClick={() => { setEditingPerformer(p); setIsPerformerModalOpen(true); }} className="text-zinc-400 hover:text-blue-400 p-2 transition-colors" title="Edit Performer">
+                                      <Edit size={18} />
+                                  </button>
+                                  <button onClick={() => setDeleteConfirmation(p.id)} className="text-zinc-400 hover:text-red-400 p-2 transition-colors" title="Delete Performer">
+                                      <Trash2 size={18} />
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
               </div>
           </div>
       )}
