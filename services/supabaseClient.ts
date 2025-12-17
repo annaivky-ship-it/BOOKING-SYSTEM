@@ -1,25 +1,16 @@
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
+import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-// Declare `process` for the browser environment to satisfy TypeScript.
-// The build tool for this platform is expected to polyfill `process.env`.
-declare const process: {
-  env: {
-    [key: string]: string | undefined;
-    SUPABASE_URL: string;
-    SUPABASE_ANON_KEY: string;
-  }
-};
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// Get Supabase environment variables (using NEXT_PUBLIC_ prefix for client-side access)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
 let supabase: SupabaseClient | null = null;
 
-// Attempt to create a Supabase client only if both URL and anon key are provided
-// and appear to be valid. Otherwise, supabase remains null, and the app will
-// gracefully fall back to Demo Mode.
+// Create Supabase client only if valid credentials are provided
+// Otherwise, the app will gracefully fall back to Demo Mode
 if (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseUrl.startsWith('https://')) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
 
 export { supabase };
