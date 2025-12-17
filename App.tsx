@@ -14,8 +14,10 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import UserSettings from './components/UserSettings';
 import Auth from './components/Auth';
+import PerformerRegistration from './components/PerformerRegistration';
 import ServicesPage from './components/ServicesPage';
 import ContactUs, { ContactFormData } from './components/ContactUs';
+import HowItWorks from './components/HowItWorks';
 import { api } from './services/api';
 import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, Profile } from './types';
 import { allServices } from './data/mockData';
@@ -31,7 +33,7 @@ interface NotificationSettings {
 
 const App: React.FC = () => {
   const [ageVerified, setAgeVerified] = useState(false);
-  const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth' | 'services_page' | 'contact_us'>('available_now');
+  const [view, setView] = useState<GalleryView | 'profile' | 'booking' | 'performer_dashboard' | 'admin_dashboard' | 'do_not_serve' | 'user_settings' | 'auth' | 'performer_registration' | 'services_page' | 'contact_us'>('available_now');
   const [bookingOrigin, setBookingOrigin] = useState<GalleryView | 'admin_dashboard'>('available_now');
   const [viewedPerformer, setViewedPerformer] = useState<Performer | null>(null);
   const [selectedForBooking, setSelectedForBooking] = useState<Performer[]>([]);
@@ -54,6 +56,10 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  
+  // Admin Automation Settings
+  const [isAutoVetEnabled, setIsAutoVetEnabled] = useState(false);
 
   // Auth effect
   useEffect(() => {
@@ -318,7 +324,7 @@ const App: React.FC = () => {
       }
   }
 
-  const handleCreateDoNotServeEntry = async (newEntryData: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status'>, submitterName: Performer['name']) => {
+  const handleCreateDoNotServeEntry = async (newEntryData: Omit<DoNotServeEntry, 'id' | 'created_at' | 'status' | 'performer'>, submitterName: Performer['name']) => {
       try {
         const { data, error } = await api.createDoNotServeEntry(newEntryData);
         if (error) throw error;
@@ -346,7 +352,10 @@ const App: React.FC = () => {
       const isVerifiedBooker = bookings.some(b => 
           b.status === 'confirmed' && b.client_email.toLowerCase() === booking.client_email.toLowerCase()
       );
-      const newStatus = isVerifiedBooker ? 'deposit_pending' : 'pending_vetting';
+      
+      // AUTO-VETTING LOGIC: Skip pending_vetting if verified OR if auto-vet mode is ON
+      const shouldSkipVetting = isVerifiedBooker || isAutoVetEnabled;
+      const newStatus = shouldSkipVetting ? 'deposit_pending' : 'pending_vetting';
       
       const updateData: Partial<Booking> = { status: newStatus };
       if (eta && eta > 0) {
@@ -363,9 +372,10 @@ const App: React.FC = () => {
         const etaMessagePartAdmin = eta && eta > 0 ? ` with an ETA of ${eta} minutes` : '';
         const etaMessagePartUser = eta && eta > 0 ? ` Her ETA is ~${eta} minutes.` : '';
 
-        if (isVerifiedBooker) {
-          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking from verified client ${booking.client_name}${etaMessagePartAdmin}. It has automatically skipped vetting and is awaiting deposit.`, type: 'admin_message' });
-          addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} As a verified client, you can now proceed to payment.`, booking_id: booking.id, type: 'booking_update' });
+        if (shouldSkipVetting) {
+          const autoMsg = isAutoVetEnabled ? " (Auto-Vetting Enabled)" : " (Verified Client)";
+          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking from ${booking.client_name}${etaMessagePartAdmin}. System bypassed vetting${autoMsg}, awaiting deposit.`, type: 'admin_message' });
+          addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted your request!${etaMessagePartUser} Your application has been approved. Please proceed to payment.`, booking_id: booking.id, type: 'booking_update' });
           handleUpdateBookingStatus(bookingId, 'deposit_pending'); // Trigger notifications for this status
         } else {
           addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} has ACCEPTED the booking request from ${booking.client_name}${etaMessagePartAdmin}. It is now pending your vetting.`, type: 'admin_message' });
@@ -460,8 +470,14 @@ const App: React.FC = () => {
         setBookings(prev => [...newBookings!, ...prev]);
 
         const firstBooking = newBookings![0];
-        addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Request Sent! We've notified ${newBookings!.map(b=>b.performer?.name).join(', ')} of your request.`, booking_id: firstBooking.id, type: 'booking_update' });
-        addCommunication({ sender: 'System', recipient: 'admin', message: `📥 New Booking Request: for ${formState.fullName} with ${newBookings!.map(b=>b.performer?.name).join(', ')}. Awaiting performer acceptance.`, type: 'admin_message' });
+        
+        if (firstBooking.status === 'rejected') {
+             addCommunication({ sender: 'System', recipient: 'admin', message: `🚫 AUTO-REJECTED BOOKING: Client ${formState.fullName} attempted to book but is on the 'Do Not Serve' list.`, type: 'system_alert' });
+             addCommunication({ sender: 'System', recipient: 'user', message: `Booking Application Rejected.`, booking_id: firstBooking.id, type: 'booking_update' });
+        } else {
+             addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Booking Request Sent! We've notified ${newBookings!.map(b=>b.performer?.name).join(', ')} of your request.`, booking_id: firstBooking.id, type: 'booking_update' });
+             addCommunication({ sender: 'System', recipient: 'admin', message: `📥 New Booking Request: for ${formState.fullName} with ${newBookings!.map(b=>b.performer?.name).join(', ')}. Awaiting performer acceptance.`, type: 'admin_message' });
+        }
 
         return { success: true, message: 'Booking submitted', bookingIds: newBookings!.map(b => b.id) };
     } catch(err: any) {
@@ -623,7 +639,7 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
-    if (isLoading && !['auth'].includes(view)) {
+    if (isLoading && !['auth', 'performer_registration'].includes(view)) {
        return (
          <div className="flex flex-col items-center justify-center p-12 text-zinc-400">
             <LoaderCircle className="w-16 h-16 animate-spin text-orange-500 mb-4" />
@@ -639,8 +655,34 @@ const App: React.FC = () => {
 
     switch (view) {
       case 'auth':
-        return <Auth onBack={() => setView('available_now')} />;
-      case 'profile':
+        return <Auth onBack={() => setView('available_now')} onRegisterClick={() => setView('performer_registration')} />;
+      case 'performer_registration':
+        if (registrationSuccess) {
+            return (
+                <div className="min-h-[60vh] flex flex-col items-center justify-center text-center animate-fade-in">
+                    <div className="bg-zinc-900/80 p-10 rounded-2xl border border-zinc-700 max-w-lg">
+                        <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <CalendarCheck className="h-10 w-10 text-green-500" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-white mb-4">Registration Successful!</h2>
+                        <p className="text-zinc-400 mb-8">
+                            Your performer profile has been created. You can now sign in to your dashboard to manage your availability and view bookings.
+                        </p>
+                        <button 
+                            onClick={() => { setRegistrationSuccess(false); setView('auth'); }}
+                            className="btn-primary px-8 py-3"
+                        >
+                            Go to Sign In
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        return <PerformerRegistration onBack={() => setView('auth')} onSuccess={() => setRegistrationSuccess(true)} />;
+      case 'profile': {
+        const performerBookings = viewedPerformer ? bookings.filter(b => b.performer_id === viewedPerformer.id) : [];
+        const canEditStatus = !!(userProfile && (userProfile.role === 'admin' || (userProfile.role === 'performer' && userProfile.performer_id === viewedPerformer?.id)));
+        
         return viewedPerformer && (
             <PerformerProfile 
                 performer={viewedPerformer} 
@@ -648,8 +690,12 @@ const App: React.FC = () => {
                 onBook={handleBookSinglePerformer}
                 isSelected={selectedForBooking.some(p => p.id === viewedPerformer.id)}
                 onToggleSelection={handleTogglePerformerSelection}
+                bookings={performerBookings}
+                canEditStatus={canEditStatus}
+                onStatusChange={(status) => handlePerformerStatusChange(viewedPerformer.id, status)}
             />
         );
+      }
       case 'booking':
         const approvedDNS = doNotServeList.filter(e => e.status === 'approved');
         return selectedForBooking.length > 0 && (
@@ -689,8 +735,10 @@ const App: React.FC = () => {
             onAdminDecisionForPerformer={handleAdminBookingDecisionForPerformer}
             onAdminChangePerformer={handleAdminChangePerformer}
             onViewPerformer={handleViewProfile}
+            isAutoVetEnabled={isAutoVetEnabled}
+            onToggleAutoVet={(enabled) => setIsAutoVetEnabled(enabled)}
           />;
-      case 'performer_dashboard':
+      case 'performer_dashboard': {
         if (!['performer', 'admin'].includes(userProfile?.role || '')) return <p>Access Denied</p>;
         const currentPerformerId = (userProfile?.role === 'performer' && userProfile.performer_id) 
             ? userProfile.performer_id 
@@ -700,6 +748,7 @@ const App: React.FC = () => {
         const performerBookings = bookings.filter(b => b.performer_id === currentPerformerId);
         const performerCommunications = communications.filter(c => c.recipient === currentPerformerId);
         return currentPerformer ? <PerformerDashboard performer={currentPerformer} bookings={performerBookings} communications={performerCommunications} onToggleStatus={(status) => handlePerformerStatusChange(currentPerformer.id, status)} onViewDoNotServe={handleViewDoNotServe} onBookingDecision={handlePerformerBookingDecision} onReferralFeePaid={handleReferralFeePaid} /> : <p className="text-center text-gray-400">Select a performer to view their dashboard.</p>;
+      }
       case 'do_not_serve':
          const performerIdForDns = (userProfile?.role === 'performer') ? userProfile.performer_id : currentPerformerIdForAdmin;
         const performerSubmitting = performers.find(p => p.id === performerIdForDns);
@@ -735,13 +784,16 @@ const App: React.FC = () => {
               <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-4 tracking-tight">
                 {isAvailableNow ? 'Available Now' : 'Schedule a Future Booking'}
               </h1>
-              <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
+              <p className="text-lg text-zinc-400 max-w-2xl mx-auto mb-8">
                 {isAvailableNow
-                    ? "These performers are online and ready for immediate bookings."
+                    ? "Perth's hottest skimmys, topless and nude waitresses and strippers available now to party with you."
                     : "Browse all professionals. Select one or more to begin your booking for a future date."
                 }
               </p>
             </div>
+            
+            <HowItWorks />
+
             <div className="mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative">
                 <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
@@ -776,13 +828,14 @@ const App: React.FC = () => {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
               {filteredPerformers.map((performer) => (
                 <PerformerCard
                   key={performer.id}
                   performer={performer}
                   onViewProfile={handleViewProfile}
                   onToggleSelection={handleTogglePerformerSelection}
+                  onBook={handleBookSinglePerformer}
                   isSelected={selectedForBooking.some(p => p.id === performer.id)}
                 />
               ))}

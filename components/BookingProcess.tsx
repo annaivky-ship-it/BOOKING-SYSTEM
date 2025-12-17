@@ -298,7 +298,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             const result = await onBookingRequest(form, performers);
             if (result.success && result.bookingIds) {
                 setBookingIds(result.bookingIds);
-                setStage('performer_acceptance_pending');
+                // Rely on useEffect to set stage based on booking status (which handles rejection)
             } else {
                 throw new Error(result.message);
             }
@@ -337,7 +337,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             // AUTOMATED WORKFLOW: Automatically confirm booking instead of setting to pending
             await Promise.all(bookingIds.map(id => onUpdateBookingStatus(id, 'confirmed')));
             const firstBookingId = bookingIds[0];
-            await addCommunication({ sender: 'System', recipient: 'admin', message: `Instant PayID payment verified for booking #${firstBookingId.slice(0,8)}. System auto-confirmed the booking.`, booking_id: firstBookingId, type: 'admin_message' });
+            await addCommunication({ sender: 'System', recipient: 'admin', message: `💸 INSTANT PAYID: Payment verified for booking #${firstBookingId.slice(0,8)}. System AUTO-CONFIRMED the booking.`, booking_id: firstBookingId, type: 'admin_message' });
             setStage('confirmed');
         } catch(err) {
             setError("Failed to process payment. Please try again.");
@@ -588,7 +588,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                             className="w-full py-4 text-lg flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transform hover:-translate-y-0.5 mb-6"
                             disabled={isSubmitting}
                         >
-                           🚀 Pay now with PayID
+                           🚀 Pay now with PayID (Instant Confirmation)
                         </button>
 
                         <div className="relative my-6">

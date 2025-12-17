@@ -1,9 +1,12 @@
+
 // services/api.ts
 import { supabase } from './supabaseClient';
 import { mockPerformers, mockBookings, mockDoNotServeList, mockCommunications } from '../data/mockData';
 import type { Performer, Booking, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, PerformerStatus, Profile } from '../types';
 import { BookingFormState } from '../components/BookingProcess';
 import type { Session, User } from 'https://esm.sh/@supabase/supabase-js@^2.44.4';
+import { twilioService } from './twilioService';
+import { calculateBookingCost } from '../utils/bookingUtils';
 
 
 const isDemoMode = !supabase;
@@ -61,15 +64,28 @@ export const api = {
   async signInWithPassword(email: string, password: string): Promise<{ data: any, error: any }> {
       if (isDemoMode) {
           await delay(1000);
-          if (password !== 'password123') {
-              return { data: {}, error: { message: 'Invalid password. Use "password123" for demo.' } };
-          }
           
+          // Check if it's a hardcoded demo user or a newly registered one
           let profile: Profile | undefined;
-          if (email.toLowerCase() === 'april@flavor.com') {
-              profile = demoProfiles.find(p => p.role === 'performer');
-          } else if (email.toLowerCase() === 'admin@flavor.com') {
-              profile = demoProfiles.find(p => p.role === 'admin');
+          
+          // Hardcoded demo check
+          if (password === 'password123') {
+             if (email.toLowerCase() === 'april@flavor.com') {
+                 profile = demoProfiles.find(p => p.role === 'performer' && p.performer_id === 5);
+             } else if (email.toLowerCase() === 'admin@flavor.com') {
+                 profile = demoProfiles.find(p => p.role === 'admin');
+             }
+          }
+
+          // Dynamic check for new registrations in demo mode
+          if (!profile) {
+              // In a real app, we check the DB. In demo, we check our in-memory demoProfiles
+              // Ideally, we'd map email to profile ID, but for this mock, we'll iterate
+              // This is a simplified mock auth
+              const foundProfile = demoProfiles.find(p => p.id === `demo-user-${email}`);
+              if (foundProfile && password.length >= 6) { // accepting any password > 6 chars for mocked users
+                  profile = foundProfile;
+              }
           }
 
           if (profile) {
@@ -85,7 +101,7 @@ export const api = {
               return { data: { session: demoSession, user: demoSession.user }, error: null };
           }
           
-          return { data: {}, error: { message: 'Invalid credentials. Use april@flavor.com or admin@flavor.com.' } };
+          return { data: {}, error: { message: 'Invalid credentials. Use april@flavor.com or admin@flavor.com (pass: password123).' } };
       }
       return supabase.auth.signInWithPassword({ email, password });
   },
@@ -107,6 +123,79 @@ export const api = {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       return { data, error };
   },
+  
+  // --- REGISTRATION ---
+  async registerPerformer(data: { email: string; password: string; name: string; tagline: string; bio: string; photo_url: string; service_ids: string[] }): Promise<{ success: boolean; error: any }> {
+      if (isDemoMode) {
+          await delay(1500);
+          
+          // 1. Create Performer ID
+          const newPerformerId = Math.max(...demoPerformers.map((p: Performer) => p.id)) + 1;
+          
+          // 2. Create Performer Entry
+          const newPerformer: Performer = {
+              id: newPerformerId,
+              name: data.name,
+              tagline: data.tagline,
+              bio: data.bio,
+              photo_url: data.photo_url || 'https://images.pexels.com/photos/1540406/pexels-photo-1540406.jpeg?auto=compress&cs=tinysrgb&w=800', // Default if empty
+              gallery_urls: [],
+              service_ids: data.service_ids,
+              status: 'offline', // Default to offline
+              created_at: new Date().toISOString(),
+              phone: '+61400000000' // Default dummy phone for registration
+          };
+          demoPerformers.push(newPerformer);
+
+          // 3. Create Auth/Profile Entry
+          const newProfile: Profile = {
+              id: `demo-user-${data.email}`,
+              role: 'performer',
+              performer_id: newPerformerId
+          };
+          demoProfiles.push(newProfile);
+
+          return { success: true, error: null };
+      }
+
+      // Real Supabase Implementation
+      // 1. Sign Up User
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+      });
+
+      if (authError) return { success: false, error: authError };
+      if (!authData.user) return { success: false, error: { message: "Auth failed" } };
+
+      // 2. Insert Performer Data
+      const { data: performerData, error: performerError } = await supabase
+          .from('performers')
+          .insert({
+              name: data.name,
+              tagline: data.tagline,
+              bio: data.bio,
+              photo_url: data.photo_url,
+              gallery_urls: [],
+              service_ids: data.service_ids,
+              status: 'offline'
+          })
+          .select()
+          .single();
+
+      if (performerError) return { success: false, error: performerError };
+
+      // 3. Update Profile with Role and Performer ID
+      const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ role: 'performer', performer_id: performerData.id })
+          .eq('id', authData.user.id);
+      
+      if (profileError) return { success: false, error: profileError };
+
+      return { success: true, error: null };
+  },
+
 
   // --- GETTERS ---
   async getInitialData() {
@@ -122,7 +211,7 @@ export const api = {
 
     const [performers, bookings, doNotServeList, communications] = await Promise.all([
       supabase.from('performers').select('*').order('id'),
-      supabase.from('bookings').select('*, performer:performer_id(id, name)').order('created_at', { ascending: false }),
+      supabase.from('bookings').select('*, performer:performer_id(id, name, phone)').order('created_at', { ascending: false }),
       supabase.from('do_not_serve').select('*, performer:submitted_by_performer_id(name)').order('created_at', { ascending: false }),
       supabase.from('communications').select('*').order('created_at', { ascending: false }),
     ]);
@@ -131,6 +220,40 @@ export const api = {
   },
 
   // --- MUTATIONS ---
+
+  async createPerformer(performerData: Omit<Performer, 'id' | 'created_at'>): Promise<{ data: Performer[] | null, error: any }> {
+      if (isDemoMode) {
+          await delay(1000);
+          const newId = Math.max(...demoPerformers.map((p: Performer) => p.id), 0) + 1;
+          const newPerformer = { ...performerData, id: newId, created_at: new Date().toISOString() };
+          demoPerformers.push(newPerformer);
+          return { data: [newPerformer], error: null };
+      }
+      return supabase.from('performers').insert(performerData).select();
+  },
+
+  async updatePerformerProfile(id: number, updates: Partial<Performer>): Promise<{ data: Performer[] | null, error: any }> {
+      if (isDemoMode) {
+          await delay(800);
+          const index = demoPerformers.findIndex((p: Performer) => p.id === id);
+          if (index !== -1) {
+              demoPerformers[index] = { ...demoPerformers[index], ...updates };
+              return { data: [demoPerformers[index]], error: null };
+          }
+          return { data: null, error: { message: "Performer not found" } };
+      }
+      return supabase.from('performers').update(updates).eq('id', id).select();
+  },
+
+  async deletePerformer(id: number): Promise<{ success: boolean; error: any }> {
+      if (isDemoMode) {
+          await delay(800);
+          demoPerformers = demoPerformers.filter((p: Performer) => p.id !== id);
+          return { success: true, error: null };
+      }
+      const { error } = await supabase.from('performers').delete().eq('id', id);
+      return { success: !error, error };
+  },
 
   async addCommunication(comm: Omit<Communication, 'id' | 'created_at' | 'read'>): Promise<{ data: Communication[] | null, error: any }> {
      const newComm: Omit<Communication, 'id' | 'created_at'> & { read: false } = {
@@ -161,16 +284,60 @@ export const api = {
 
   async updateBookingStatus(bookingId: string, status: BookingStatus, updates: Partial<Booking> = {}): Promise<{ data: Booking[] | null, error: any }> {
     const dataToUpdate = { status, ...updates };
+    
+    const triggerNotifications = async (booking: Booking) => {
+        // --- TWILIO TRIGGERS ---
+        // 1. Performer Accepted (Pending Vetting)
+        if (status === 'pending_vetting') {
+            await twilioService.notifyClientPerformerAccepted(booking);
+            await twilioService.notifyAdminPerformerAccepted(booking);
+        }
+        // 2. Admin Approved Vetting (Deposit Pending)
+        else if (status === 'deposit_pending') {
+            await twilioService.notifyClientDepositNeeded(booking);
+        }
+        // 3. Client Paid (Pending Confirmation)
+        else if (status === 'pending_deposit_confirmation') {
+            await twilioService.notifyAdminDepositPaid(booking);
+        }
+        // 4. Confirmed
+        else if (status === 'confirmed') {
+            const { totalCost, depositAmount } = calculateBookingCost(booking.duration_hours, booking.services_requested, 1);
+            const balance = totalCost - depositAmount;
+            await twilioService.notifyClientConfirmed(booking, balance);
+            await twilioService.notifyAdminConfirmed(booking);
+            if (booking.performer && booking.performer.phone) {
+                await twilioService.notifyPerformerConfirmed(booking, booking.performer.phone);
+            }
+        }
+        // 5. Rejected
+        else if (status === 'rejected') {
+            await twilioService.notifyClientRejected(booking);
+        }
+    }
+
     if (isDemoMode) {
       await delay(1000);
       const bookingIndex = demoBookings.findIndex(b => b.id === bookingId);
       if (bookingIndex !== -1) {
-        demoBookings[bookingIndex] = { ...demoBookings[bookingIndex], ...dataToUpdate };
-        return { data: [demoBookings[bookingIndex]], error: null };
+        // Merge updates
+        const updatedBooking = { ...demoBookings[bookingIndex], ...dataToUpdate };
+        demoBookings[bookingIndex] = updatedBooking;
+        
+        // Trigger Notifications based on *new* status
+        await triggerNotifications(updatedBooking);
+
+        return { data: [updatedBooking], error: null };
       }
       return { data: null, error: { message: 'Booking not found' } };
     }
-    return supabase.from('bookings').update(dataToUpdate).eq('id', bookingId).select('*, performer:performer_id(id, name)');
+    
+    // Real Supabase call
+    const { data, error } = await supabase.from('bookings').update(dataToUpdate).eq('id', bookingId).select('*, performer:performer_id(id, name, phone)');
+    if (data && data[0]) {
+        await triggerNotifications(data[0]);
+    }
+    return { data, error };
   },
 
   async updateReferralFeeStatus(bookingId: string, feeAmount: number, receiptPath: string): Promise<{ data: Booking[] | null, error: any }> {
@@ -222,6 +389,27 @@ export const api = {
   },
 
   async createBookingRequest(formState: BookingFormState, requestedPerformers: Performer[]): Promise<{ data: Booking[] | null, error: any }> {
+     
+     const processBookingCreation = async (bookingsToCreate: Booking[]) => {
+         const firstBooking = bookingsToCreate[0];
+         if (firstBooking.status === 'rejected') {
+             // Notify Admin of blockage
+             await twilioService.notifyAdminAutoRejected(firstBooking.client_name, "DNS List Match");
+         } else {
+             // Notify Admin of new request
+             await twilioService.notifyAdminNewRequest(firstBooking);
+             // Notify Client received
+             await twilioService.notifyClientRequestReceived(firstBooking);
+             // Notify Performer(s)
+             for (const b of bookingsToCreate) {
+                 const performer = requestedPerformers.find(p => p.id === b.performer_id);
+                 if (performer && performer.phone) {
+                     await twilioService.notifyPerformerNewRequest(b, performer.phone);
+                 }
+             }
+         }
+     }
+
      if (isDemoMode) {
         await delay(1500);
         const approvedDNS = demoDoNotServeList.filter(e => e.status === 'approved');
@@ -232,15 +420,7 @@ export const api = {
             return nameMatch || emailMatch || phoneMatch;
         });
 
-        if (isBlocked) {
-            this.addCommunication({
-                sender: 'System',
-                recipient: 'admin',
-                message: `BLOCKED BOOKING ATTEMPT: A client on the 'Do Not Serve' list (${formState.fullName}) tried to book. The system prevented it.`,
-                type: 'system_alert'
-            });
-            return { data: null, error: { message: "This client is on the 'Do Not Serve' list and cannot be booked. The system has blocked the request and notified administration." }};
-        }
+        const initialStatus: BookingStatus = isBlocked ? 'rejected' : 'pending_performer_acceptance';
         
         const newBookings: Booking[] = requestedPerformers.map((p, i) => ({
             id: `demo-${Date.now()}-${i}`,
@@ -254,7 +434,7 @@ export const api = {
             event_type: formState.eventType,
             number_of_guests: Number(formState.numberOfGuests),
             client_message: formState.client_message,
-            status: 'pending_performer_acceptance' as const,
+            status: initialStatus,
             duration_hours: Number(formState.duration),
             services_requested: formState.selectedServices,
             id_document_path: formState.idDocument ? `demo/id-${Date.now()}-${formState.idDocument.name}` : null,
@@ -262,12 +442,16 @@ export const api = {
             created_at: new Date().toISOString(),
             verified_by_admin_name: null,
             verified_at: null,
-            performer: { id: p.id, name: p.name },
+            performer: { id: p.id, name: p.name, phone: p.phone },
             performer_eta_minutes: null,
             referral_fee_paid: false,
         }));
         
         demoBookings.unshift(...newBookings);
+        
+        // Trigger Twilio Logic
+        await processBookingCreation(newBookings);
+
         return { data: newBookings, error: null };
     }
 
@@ -293,15 +477,7 @@ export const api = {
         return nameMatch || emailMatch || phoneMatch;
     });
 
-    if (isBlocked) {
-        this.addCommunication({
-            sender: 'System',
-            recipient: 'admin',
-            message: `BLOCKED BOOKING ATTEMPT: A client on the 'Do Not Serve' list (${formState.fullName}) tried to book. The system prevented it.`,
-            type: 'system_alert'
-        });
-        return { data: null, error: { message: "This client is on the 'Do Not Serve' list and cannot be booked. The system has blocked the request and notified administration." }};
-    }
+    const initialStatus: BookingStatus = isBlocked ? 'rejected' : 'pending_performer_acceptance';
 
     // 2. File Upload
     let idDocumentPath: string | null = null;
@@ -333,7 +509,7 @@ export const api = {
         event_type: formState.eventType,
         number_of_guests: Number(formState.numberOfGuests),
         client_message: formState.client_message,
-        status: 'pending_performer_acceptance' as const,
+        status: initialStatus,
         duration_hours: Number(formState.duration),
         services_requested: formState.selectedServices,
         id_document_path: idDocumentPath,
@@ -343,10 +519,15 @@ export const api = {
     const { data, error } = await supabase
       .from('bookings')
       .insert(newBookingsData)
-      .select('*, performer:performer_id(id, name)'); // fetch performer name too
+      .select('*, performer:performer_id(id, name, phone)');
 
     if (error) {
       return { data: null, error: { message: `Failed to create booking: ${error.message}` } };
+    }
+    
+    // Trigger Twilio Logic
+    if (data) {
+        await processBookingCreation(data);
     }
 
     return { data, error: null };

@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { Mail, LoaderCircle, Lock } from 'lucide-react';
+import { Mail, LoaderCircle, Lock, UserPlus } from 'lucide-react';
 
 interface AuthProps {
   onBack: () => void;
+  onRegisterClick: () => void;
 }
 
-const Auth: React.FC<AuthProps> = ({ onBack }) => {
+const Auth: React.FC<AuthProps> = ({ onBack, onRegisterClick }) => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +28,7 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-900 p-4 animate-fade-in">
       <div className="card-base !p-8 max-w-sm w-full mx-auto">
         <div className="text-center mb-8">
             <div className="flex flex-col items-center cursor-pointer no-underline group mb-4">
@@ -80,11 +81,21 @@ const Auth: React.FC<AuthProps> = ({ onBack }) => {
           </button>
         </form>
         
-        {error && <p className="mt-4 text-center text-red-400">{error}</p>}
+        {error && <p className="mt-4 text-center text-red-400 text-sm bg-red-900/20 p-2 rounded">{error}</p>}
+        
+        <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
+            <p className="text-zinc-400 text-sm mb-3">Want to become a performer?</p>
+            <button 
+                onClick={onRegisterClick}
+                className="w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-600 transition-all flex items-center justify-center gap-2 font-medium"
+            >
+                <UserPlus size={16} /> Join as Talent
+            </button>
+        </div>
 
         <div className="text-center text-xs text-zinc-500 mt-6 space-y-2">
             <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className="text-orange-400 hover:text-orange-300 transition-colors underline">
-                &larr; Or return to the public gallery
+                &larr; Return to the public gallery
             </a>
         </div>
       </div>

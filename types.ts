@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type PerformerStatus = 'available' | 'busy' | 'offline';
@@ -30,10 +31,12 @@ export interface Performer {
   name:string;
   tagline: string;
   photo_url: string; // matches Supabase column
+  gallery_urls: string[]; // Additional photos
   bio: string;
   service_ids: string[];
   status: PerformerStatus;
   created_at: string;
+  phone: string; // Added for WhatsApp notifications
 }
 
 export interface Booking {
@@ -62,6 +65,7 @@ export interface Booking {
     performer?: {
         id: number;
         name: string;
+        phone?: string;
     }
     referral_fee_amount?: number | null;
     referral_fee_paid?: boolean;

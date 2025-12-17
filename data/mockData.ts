@@ -1,6 +1,4 @@
 
-
-
 import type { Performer, Booking, DoNotServeEntry, Service, Communication } from '../types';
 
 export const allServices: Service[] = [
@@ -9,7 +7,7 @@ export const allServices: Service[] = [
     { id: 'waitress-topless', category: 'Waitressing', name: 'Topless Waitress', description: 'Topless service for fun and cheeky vibes.', rate: 160, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Private events only' },
     { id: 'waitress-nude', category: 'Waitressing', name: 'Nude Waitress', description: 'Bold full nude service. Great for wild private parties.', rate: 260, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Private events only' },
     // Strip Shows
-    { id: 'show-hot-cream', category: 'Strip Show', name: 'Hot Cream Show', description: 'Flirty strip ending with whipped cream play.', rate:444380, rate_type: 'flat', duration_minutes: 10, booking_notes: 'Includes cream and strip show' },
+    { id: 'show-hot-cream', category: 'Strip Show', name: 'Hot Cream Show', description: 'Flirty strip ending with whipped cream play.', rate: 444380, rate_type: 'flat', duration_minutes: 10, booking_notes: 'Includes cream and strip show' },
     { id: 'show-pearl', category: 'Strip Show', name: 'Pearl Show', description: 'G-string strip with classic pearl finish.', rate: 500, rate_type: 'flat', duration_minutes: 15, booking_notes: 'Standard solo strip show' },
     { id: 'show-toy', category: 'Strip Show', name: 'Toy Show', description: 'Full nude strip with toy performance.', rate: 550, rate_type: 'flat', duration_minutes: 15, booking_notes: 'Includes toy play' },
     { id: 'show-pearls-vibe-cream', category: 'Strip Show', name: 'Pearls, Vibe + Cream', description: 'All-in-one show with cream, pearls, and toy play.', rate: 650, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Multi-prop strip performance' },
@@ -31,60 +29,79 @@ export const mockPerformers: Performer[] = [
     name: 'April Flavor',
     tagline: 'Sweet, sassy, and always a delight.',
     photo_url: 'https://i.imgur.com/fJHc978.jpeg',
+    gallery_urls: [
+        'https://images.pexels.com/photos/1755385/pexels-photo-1755385.jpeg?auto=compress&cs=tinysrgb&w=800',
+        'https://images.pexels.com/photos/1382731/pexels-photo-1382731.jpeg?auto=compress&cs=tinysrgb&w=800',
+        'https://images.pexels.com/photos/1755390/pexels-photo-1755390.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ],
     bio: 'April brings a fresh and exciting energy to every event. With a background in dance and modeling, she captivates audiences and ensures a memorable experience. She is perfect for high-energy parties and promotional events.',
     service_ids: ['waitress-topless', 'show-hot-cream', 'show-pearl', 'show-deluxe-works', 'misc-promo-model'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61400000005'
   },
   {
     id: 6,
     name: 'Anna Ivky',
     tagline: 'Sophistication and a hint of mystery.',
     photo_url: 'https://i.imgur.com/ece0iUZ.jpeg',
+    gallery_urls: [
+        'https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=800',
+        'https://images.pexels.com/photos/2613260/pexels-photo-2613260.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ],
     bio: 'Anna is the epitome of grace and professionalism. Her experience with exclusive, private events makes her the ideal choice for clients seeking a discreet yet impactful presence. Her poise and charm elevate any gathering.',
     service_ids: ['waitress-lingerie', 'show-toy', 'show-works-greek', 'show-absolute-works'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61400000006'
   },
   {
     id: 1,
     name: 'Scarlett',
     tagline: 'The life of the party, guaranteed.',
     photo_url: 'https://images.pexels.com/photos/1485031/pexels-photo-1485031.jpeg?auto=compress&cs=tinysrgb&w=800',
+    gallery_urls: [],
     bio: 'With over a decade of experience in corporate events and private parties, Scarlett knows exactly how to get the crowd going. Her vibrant personality and professional demeanor make her a favorite for any occasion.',
     service_ids: ['waitress-topless', 'waitress-nude', 'show-hot-cream', 'misc-atmospheric'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61400000001'
   },
   {
     id: 2,
     name: 'Jasmine',
     tagline: 'Elegance and charm for your special event.',
     photo_url: 'https://images.pexels.com/photos/2418485/pexels-photo-2418485.jpeg?auto=compress&cs=tinysrgb&w=800',
+    gallery_urls: ['https://images.pexels.com/photos/2811087/pexels-photo-2811087.jpeg?auto=compress&cs=tinysrgb&w=800'],
     bio: 'Jasmine specializes in high-end events, bringing a touch of class and sophistication. Her background in theatre and performing arts ensures a captivating experience for all guests.',
     service_ids: ['misc-promo-model', 'misc-atmospheric', 'waitress-lingerie'],
     status: 'busy',
     created_at: new Date().toISOString(),
+    phone: '+61400000002'
   },
   {
     id: 3,
     name: 'Amber',
     tagline: 'Bringing warmth and energy to every room.',
     photo_url: 'https://images.pexels.com/photos/3221164/pexels-photo-3221164.jpeg?auto=compress&cs=tinysrgb&w=800',
+    gallery_urls: [],
     bio: 'Amber’s infectious energy and friendly approach make her perfect for creating a relaxed and fun atmosphere. She excels at making guests feel comfortable and ensuring everyone has a memorable time.',
     service_ids: ['waitress-topless', 'misc-games-host', 'show-pearl'],
     status: 'available',
     created_at: new Date().toISOString(),
+    phone: '+61400000003'
   },
   {
     id: 4,
     name: 'Chloe',
     tagline: 'Professional, punctual, and always polished.',
     photo_url: 'https://images.pexels.com/photos/1640229/pexels-photo-1640229.jpeg?auto=compress&cs=tinysrgb&w=800',
+    gallery_urls: [],
     bio: 'Chloe prides herself on her professionalism and attention to detail. She seamlessly integrates into any event, providing top-tier service and ensuring everything runs smoothly from start to finish.',
     service_ids: ['misc-promo-model', 'misc-atmospheric', 'waitress-lingerie'],
     status: 'offline',
     created_at: new Date().toISOString(),
+    phone: '+61400000004'
   },
 ];
 
@@ -109,7 +126,7 @@ export const mockBookings: Booking[] = [
         verified_by_admin_name: 'Admin Demo',
         verified_at: new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000).toISOString(),
         client_message: 'Looking for a very energetic performance for a corporate crowd.',
-        performer: { id: 1, name: 'Scarlett' },
+        performer: { id: 1, name: 'Scarlett', phone: '+61400000001' },
         performer_eta_minutes: 25,
     },
     {
@@ -132,7 +149,7 @@ export const mockBookings: Booking[] = [
         verified_by_admin_name: null,
         verified_at: null,
         client_message: null,
-        performer: { id: 2, name: 'Jasmine' },
+        performer: { id: 2, name: 'Jasmine', phone: '+61400000002' },
         performer_eta_minutes: 30,
     },
     {
@@ -155,7 +172,7 @@ export const mockBookings: Booking[] = [
         verified_by_admin_name: null,
         verified_at: null,
         client_message: 'Please be discreet, this is a surprise party.',
-        performer: { id: 5, name: 'April Flavor' },
+        performer: { id: 5, name: 'April Flavor', phone: '+61400000005' },
         performer_eta_minutes: null,
     },
     {
@@ -178,7 +195,7 @@ export const mockBookings: Booking[] = [
         verified_by_admin_name: null,
         verified_at: null,
         client_message: null,
-        performer: { id: 3, name: 'Amber' },
+        performer: { id: 3, name: 'Amber', phone: '+61400000003' },
         performer_eta_minutes: null,
     }
 ];

@@ -1,8 +1,12 @@
 
 import React, { useMemo, useState } from 'react';
-import { Booking, Performer, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication } from '../types';
-import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, Bell, Eye } from 'lucide-react';
+import { Booking, Performer, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, Service } from '../types';
+import { ShieldCheck, ShieldAlert, Check, X, MessageSquare, Download, Filter, FileText, DollarSign, CreditCard, BarChart, Inbox, Users as UsersIcon, UserCog, RefreshCcw, ChevronDown, Clock, LoaderCircle, Bell, Eye, PieChart, ToggleRight, ToggleLeft, AlertTriangle, Trash2, Plus, Edit, Image as ImageIcon, Briefcase, Camera } from 'lucide-react';
 import { calculateBookingCost } from '../utils/bookingUtils';
+import { allServices } from '../data/mockData';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { api } from '../services/api';
+import InputField from './InputField';
 
 interface AdminDashboardProps {
   bookings: Booking[];
@@ -15,6 +19,8 @@ interface AdminDashboardProps {
   onAdminDecisionForPerformer: (bookingId: string, decision: 'accepted' | 'declined') => Promise<void>;
   onAdminChangePerformer: (bookingId: string, newPerformerId: number) => Promise<void>;
   onViewPerformer: (performer: Performer) => void;
+  isAutoVetEnabled: boolean;
+  onToggleAutoVet: (enabled: boolean) => void;
 }
 
 const statusClasses: Record<BookingStatus, string> = {
@@ -35,14 +41,200 @@ const bookingStatusOptions: { value: BookingStatus; label: string }[] = [
     { value: 'rejected', label: 'Rejected' },
 ];
 
-type AdminTab = 'management' | 'payments' | 'communications';
+type AdminTab = 'management' | 'performers' | 'payments' | 'communications' | 'analytics';
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, doNotServeList, communications, onUpdateBookingStatus, onUpdateDoNotServeStatus, onViewDoNotServe, onAdminDecisionForPerformer, onAdminChangePerformer, onViewPerformer }) => {
+const PerformerManagerModal: React.FC<{ 
+    isOpen: boolean, 
+    onClose: () => void, 
+    performer?: Performer, 
+    onSave: (data: Omit<Performer, 'id' | 'created_at'>) => Promise<void> 
+}> = ({ isOpen, onClose, performer, onSave }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        name: performer?.name || '',
+        tagline: performer?.tagline || '',
+        bio: performer?.bio || '',
+        phone: performer?.phone || '',
+        photo_url: performer?.photo_url || '',
+        status: performer?.status || 'offline',
+        service_ids: performer?.service_ids || [],
+        gallery_urls: performer?.gallery_urls || []
+    });
+    
+    // Reset form when performer prop changes
+    React.useEffect(() => {
+        setFormData({
+            name: performer?.name || '',
+            tagline: performer?.tagline || '',
+            bio: performer?.bio || '',
+            phone: performer?.phone || '',
+            photo_url: performer?.photo_url || '',
+            status: performer?.status || 'offline',
+            service_ids: performer?.service_ids || [],
+            gallery_urls: performer?.gallery_urls || []
+        });
+    }, [performer, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const handleServiceToggle = (id: string) => {
+        setFormData(prev => {
+            const exists = prev.service_ids.includes(id);
+            if (exists) return { ...prev, service_ids: prev.service_ids.filter(sid => sid !== id) };
+            return { ...prev, service_ids: [...prev.service_ids, id] };
+        });
+    };
+    
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, photo_url: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, gallery_urls: [...prev.gallery_urls, reader.result as string] }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    const removeGalleryImage = (index: number) => {
+        setFormData(prev => ({ ...prev, gallery_urls: prev.gallery_urls.filter((_, i) => i !== index) }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        await onSave(formData as any);
+        setIsSaving(false);
+        onClose();
+    };
+    
+    const servicesByCategory = allServices.reduce((acc, service) => {
+        (acc[service.category] = acc[service.category] || []).push(service);
+        return acc;
+    }, {} as Record<string, Service[]>);
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center sticky top-0 bg-zinc-900/95 backdrop-blur z-10">
+                    <h2 className="text-xl font-bold text-white">{performer ? 'Edit Performer' : 'Add New Performer'}</h2>
+                    <button onClick={onClose} className="text-zinc-400 hover:text-white"><X size={24} /></button>
+                </div>
+                <div className="p-6">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2">Basic Info</h3>
+                                <InputField icon={<UserCog />} name="name" placeholder="Stage Name" value={formData.name} onChange={handleChange} required />
+                                <InputField icon={<Briefcase />} name="tagline" placeholder="Tagline" value={formData.tagline} onChange={handleChange} required />
+                                <div className="relative">
+                                    <MessageSquare className="absolute left-4 top-4 h-5 w-5 text-zinc-500" />
+                                    <textarea name="bio" placeholder="Bio" value={formData.bio} onChange={handleChange} required className="input-base input-with-icon h-32 resize-y" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <InputField icon={<Clock />} name="phone" placeholder="Phone Number" value={formData.phone} onChange={handleChange} />
+                                    <div className="relative">
+                                        <ToggleRight className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                                        <select name="status" value={formData.status} onChange={handleChange} className="input-base input-with-icon appearance-none">
+                                            <option value="available">Available</option>
+                                            <option value="busy">Busy</option>
+                                            <option value="offline">Offline</option>
+                                        </select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2">Media</h3>
+                                <div className="flex flex-col items-center">
+                                    <div className="w-full h-48 bg-zinc-800 rounded-lg border-2 border-dashed border-zinc-600 flex items-center justify-center overflow-hidden relative group">
+                                        {formData.photo_url ? (
+                                            <img src={formData.photo_url} alt="Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="flex flex-col items-center text-zinc-500"><ImageIcon /><span className="text-xs mt-1">Main Profile Photo</span></div>
+                                        )}
+                                        <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-zinc-300">Gallery Images</label>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {formData.gallery_urls.map((url, idx) => (
+                                            <div key={idx} className="aspect-square relative rounded border border-zinc-700 overflow-hidden group">
+                                                <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                                                <button type="button" onClick={() => removeGalleryImage(idx)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button>
+                                            </div>
+                                        ))}
+                                        <div className="aspect-square bg-zinc-800 rounded border border-dashed border-zinc-600 flex items-center justify-center relative hover:border-orange-500 transition-colors cursor-pointer">
+                                            <Plus className="text-zinc-500" />
+                                            <input type="file" accept="image/*" onChange={handleGalleryUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 className="text-lg font-semibold text-orange-400 border-b border-zinc-700 pb-2 mb-4">Services</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-h-60 overflow-y-auto">
+                                {Object.entries(servicesByCategory).map(([category, services]) => (
+                                    <div key={category}>
+                                        <h4 className="text-sm font-bold text-zinc-300 mb-2">{category}</h4>
+                                        <div className="space-y-2">
+                                            {services.map(s => (
+                                                <label key={s.id} className="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" checked={formData.service_ids.includes(s.id)} onChange={() => handleServiceToggle(s.id)} className="rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500" />
+                                                    <span className={`text-sm ${formData.service_ids.includes(s.id) ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-300'}`}>{s.name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="flex justify-end pt-4 border-t border-zinc-800">
+                             <button type="button" onClick={onClose} className="mr-4 text-zinc-400 hover:text-white">Cancel</button>
+                             <button type="submit" disabled={isSaving} className="btn-primary px-8 flex items-center gap-2">
+                                 {isSaving ? <LoaderCircle className="animate-spin" size={18}/> : <Check size={18}/>}
+                                 {isSaving ? 'Saving...' : 'Save Performer'}
+                             </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, doNotServeList, communications, onUpdateBookingStatus, onUpdateDoNotServeStatus, onViewDoNotServe, onAdminDecisionForPerformer, onAdminChangePerformer, onViewPerformer, isAutoVetEnabled, onToggleAutoVet }) => {
   
   const [activeTab, setActiveTab] = useState<AdminTab>('management');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | ''>('');
-  const [loadingState, setLoadingState] = useState<{ type: string, id: string } | null>(null);
+  const [loadingState, setLoadingState] = useState<{ type: string, id: string | number } | null>(null);
   const [confirmationState, setConfirmationState] = useState<{ entry: DoNotServeEntry, action: 'approved' | 'rejected' } | null>(null);
+  
+  // Performer Management State
+  const [isPerformerModalOpen, setIsPerformerModalOpen] = useState(false);
+  const [editingPerformer, setEditingPerformer] = useState<Performer | undefined>(undefined);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<number | null>(null);
 
   const handleAction = async (type: string, id: string, action: () => Promise<void>) => {
     setLoadingState({ type, id });
@@ -53,6 +245,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
     } finally {
       setLoadingState(null);
     }
+  };
+  
+  const handleSavePerformer = async (data: Omit<Performer, 'id' | 'created_at'>) => {
+      if (editingPerformer) {
+          await api.updatePerformerProfile(editingPerformer.id, data);
+      } else {
+          await api.createPerformer(data);
+      }
+      // Force refresh data logic would go here if this wasn't utilizing a parent fetchData hook prop structure
+      // For now, assuming parent or global state update triggers re-render. 
+      // In this demo app structure, API writes to mock data array directly which App.tsx reads on next poll/fetch.
+      // To simulate immediate update we rely on App.tsx fetching or optimistic UI.
+      // Since `api` functions here mock updating the array, we might need to trigger a refresh.
+      window.location.reload(); // Simple brute force refresh for demo to show new data
+  };
+
+  const handleDeletePerformer = async (id: number) => {
+      setLoadingState({ type: 'delete-performer', id });
+      await api.deletePerformer(id);
+      setLoadingState(null);
+      setDeleteConfirmation(null);
+      window.location.reload();
   };
 
 
@@ -65,13 +279,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
     return bookings.filter(b => ['deposit_pending', 'pending_deposit_confirmation', 'confirmed'].includes(b.status));
   }, [bookings]);
 
+  const serviceAnalytics = useMemo(() => {
+    const counts: Record<string, number> = {};
+    bookings.forEach(b => {
+        b.services_requested.forEach(sId => {
+            counts[sId] = (counts[sId] || 0) + 1;
+        });
+    });
+
+    return Object.entries(counts).map(([id, count]) => {
+        const service = allServices.find(s => s.id === id);
+        return {
+            name: service ? service.name : id,
+            count: count
+        };
+    }).sort((a, b) => b.count - a.count);
+  }, [bookings]);
+
   const pendingDnsEntries = doNotServeList.filter(entry => entry.status === 'pending');
   const adminComms = communications.filter(c => c.recipient === 'admin');
   const unreadAlerts = communications.filter(c => c.type === 'system_alert' && !c.read);
   
   const totalBookings = bookings.length;
-  const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
-  const pendingBookings = totalBookings - confirmedBookings - bookings.filter(b => b.status === 'rejected').length;
+  const confirmedBookingsCount = bookings.filter(b => b.status === 'confirmed').length;
+  const pendingBookings = totalBookings - confirmedBookingsCount - bookings.filter(b => b.status === 'rejected').length;
 
 
   return (
@@ -91,6 +322,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
             </button>
         </div>
       )}
+      
+      <PerformerManagerModal 
+          isOpen={isPerformerModalOpen} 
+          onClose={() => { setIsPerformerModalOpen(false); setEditingPerformer(undefined); }} 
+          performer={editingPerformer}
+          onSave={handleSavePerformer}
+      />
+      
+      {deleteConfirmation && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-lg max-w-sm w-full shadow-xl">
+                  <h3 className="text-xl font-bold text-white mb-2">Confirm Deletion</h3>
+                  <p className="text-zinc-400 mb-6">Are you sure you want to delete this performer? This action cannot be undone.</p>
+                  <div className="flex justify-end gap-3">
+                      <button onClick={() => setDeleteConfirmation(null)} className="px-4 py-2 text-zinc-300 hover:text-white">Cancel</button>
+                      <button onClick={() => handleDeletePerformer(deleteConfirmation)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                          {loadingState?.id === deleteConfirmation ? <LoaderCircle className="animate-spin" size={16}/> : <Trash2 size={16}/>} Delete
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
@@ -108,7 +361,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card-base !p-6 flex items-center gap-4"><BarChart className="w-10 h-10 text-orange-500" /><div><p className="text-zinc-400 text-sm">Total Bookings</p><p className="text-3xl font-bold text-white">{totalBookings}</p></div></div>
-        <div className="card-base !p-6 flex items-center gap-4"><ShieldCheck className="w-10 h-10 text-green-500" /><div><p className="text-zinc-400 text-sm">Confirmed</p><p className="text-3xl font-bold text-white">{confirmedBookings}</p></div></div>
+        <div className="card-base !p-6 flex items-center gap-4"><ShieldCheck className="w-10 h-10 text-green-500" /><div><p className="text-zinc-400 text-sm">Confirmed</p><p className="text-3xl font-bold text-white">{confirmedBookingsCount}</p></div></div>
         <div className="card-base !p-6 flex items-center gap-4"><ShieldAlert className="w-10 h-10 text-yellow-500" /><div><p className="text-zinc-400 text-sm">Pending Actions</p><p className="text-3xl font-bold text-white">{pendingDnsEntries.length + pendingBookings}</p></div></div>
       </div>
 
@@ -177,13 +430,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
 
 
       {/* Tab Navigation */}
-      <div className="border-b border-zinc-800">
+      <div className="border-b border-zinc-800 overflow-x-auto">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('management')}
             className={`${activeTab === 'management' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-white hover:border-zinc-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
           >
             <CreditCard size={16}/> Booking Management
+          </button>
+          <button
+            onClick={() => setActiveTab('performers')}
+            className={`${activeTab === 'performers' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-white hover:border-zinc-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
+          >
+            <UserCog size={16}/> Performer Profiles
           </button>
           <button
             onClick={() => setActiveTab('payments')}
@@ -197,13 +456,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
           >
             <Inbox size={16}/> Communications Log
           </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`${activeTab === 'analytics' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-white hover:border-zinc-500'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
+          >
+            <PieChart size={16}/> Analytics
+          </button>
         </nav>
       </div>
 
       {activeTab === 'management' && (
       <div className="card-base !p-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
-          <h2 className="text-2xl font-semibold text-white">All Booking Applications</h2>
+          <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-semibold text-white">All Booking Applications</h2>
+              <button 
+                onClick={() => onToggleAutoVet(!isAutoVetEnabled)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${isAutoVetEnabled ? 'bg-green-500/10 border-green-500 text-green-400' : 'bg-zinc-800 border-zinc-600 text-zinc-400'}`}
+                title="When enabled, bookings accepted by performers automatically skip admin vetting."
+              >
+                {isAutoVetEnabled ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                {isAutoVetEnabled ? 'Auto-Vetting ON' : 'Auto-Vetting OFF'}
+              </button>
+          </div>
           <div className="flex items-center gap-2">
               <div className="relative">
                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
@@ -273,6 +548,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
                            {isLoading && loadingState?.type === 'reject' ? <LoaderCircle size={14} className="animate-spin"/> : <><X size={14}/> Reject</>}
                         </button>
                      )}
+                     {booking.status === 'confirmed' && (
+                        <button onClick={() => handleAction('revoke', booking.id, () => onUpdateBookingStatus(booking.id, 'deposit_pending'))} disabled={isLoading} className="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1.5 w-auto">
+                           {isLoading && loadingState?.type === 'revoke' ? <LoaderCircle size={14} className="animate-spin"/> : <><AlertTriangle size={14}/> Revoke / Dispute Payment</>}
+                        </button>
+                     )}
                      {booking.status === 'pending_performer_acceptance' && (
                         <div className="flex items-center gap-2 pl-2 border-l border-zinc-600">
                            <p className="text-xs font-semibold text-zinc-300">Admin Override:</p>
@@ -286,23 +566,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
                      )}
                 </div>
                  <div className="flex flex-wrap gap-2 items-center">
-                    {booking.status !== 'confirmed' && booking.status !== 'rejected' && (
-                       <div className="relative group">
-                          <RefreshCcw className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                          <select 
-                            value={booking.performer_id}
-                            onChange={(e) => onAdminChangePerformer(booking.id, Number(e.target.value))}
-                            className="input-base !py-1.5 !pl-9 !pr-8 !text-xs !w-auto appearance-none bg-zinc-700 hover:bg-zinc-600"
-                            title="Reassign Performer"
-                           >
-                            <option value={booking.performer_id} disabled>Reassign</option>
-                            {performers.filter(p => p.id !== booking.performer_id).map(p => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
+                    <div className="relative group">
+                        <RefreshCcw className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <select 
+                        value={booking.performer_id}
+                        onChange={(e) => onAdminChangePerformer(booking.id, Number(e.target.value))}
+                        className="input-base !py-1.5 !pl-9 !pr-8 !text-xs !w-auto appearance-none bg-zinc-700 hover:bg-zinc-600"
+                        title="Reassign Performer"
+                        >
+                        <option value={booking.performer_id} disabled>Reassign</option>
+                        {performers.filter(p => p.id !== booking.performer_id).map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+                    </div>
+                    
+                    <div className="relative group">
+                        <ShieldAlert className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-400" />
+                        <select 
+                            value=""
+                            onChange={(e) => handleAction('force-status', booking.id, () => onUpdateBookingStatus(booking.id, e.target.value as BookingStatus))}
+                            className="input-base !py-1.5 !pl-9 !pr-8 !text-xs !w-auto appearance-none bg-zinc-800 border-red-900/50 hover:bg-zinc-700 text-red-200"
+                            title="Force Status Change"
+                        >
+                            <option value="" disabled>Force Status</option>
+                            {bookingStatusOptions.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
-                          </select>
-                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
-                       </div>
-                    )}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-red-400 pointer-events-none" />
+                    </div>
+
                     {booking.status === 'confirmed' && booking.verified_at && (
                         <div className="text-xs text-green-300/80">
                             Verified by <strong>{booking.verified_by_admin_name}</strong> on {new Date(booking.verified_at).toLocaleDateString()}
@@ -314,6 +609,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
           )}) : <p className="text-zinc-400 text-center py-4">No bookings match the current filter.</p>}
         </div>
       </div>
+      )}
+
+      {activeTab === 'performers' && (
+          <div className="card-base !p-6">
+              <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-semibold text-white">Manage Performers</h2>
+                  <button onClick={() => { setEditingPerformer(undefined); setIsPerformerModalOpen(true); }} className="btn-primary flex items-center gap-2 px-4 py-2">
+                      <Plus size={20} /> Add Performer
+                  </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {performers.map(p => (
+                      <div key={p.id} className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50 flex flex-col gap-4 group hover:border-zinc-500 transition-all">
+                          <div className="flex flex-col items-center text-center">
+                              <div className="relative">
+                                <img src={p.photo_url} alt={p.name} className="w-24 h-24 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                <span className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-zinc-900 ${p.status === 'available' ? 'bg-green-500' : p.status === 'busy' ? 'bg-yellow-500' : 'bg-zinc-500'}`}></span>
+                              </div>
+                              <h3 className="font-bold text-white text-lg mt-3">{p.name}</h3>
+                              <p className="text-sm text-zinc-400 line-clamp-1">{p.tagline}</p>
+                              <span className={`mt-2 text-xs px-2 py-0.5 rounded-full font-bold border ${p.status === 'available' ? 'bg-green-900/30 text-green-400 border-green-800' : p.status === 'busy' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' : 'bg-zinc-800 text-zinc-400 border-zinc-600'}`}>
+                                  {p.status.toUpperCase()}
+                              </span>
+                          </div>
+                          <div className="flex items-center justify-center gap-2 mt-auto pt-4 border-t border-zinc-700/50">
+                              <button onClick={() => onViewPerformer(p)} className="text-zinc-400 hover:text-white p-2" title="View Public Profile">
+                                  <Eye size={18} />
+                              </button>
+                              <button onClick={() => { setEditingPerformer(p); setIsPerformerModalOpen(true); }} className="text-zinc-400 hover:text-blue-400 p-2 transition-colors" title="Edit Performer">
+                                  <Edit size={18} />
+                              </button>
+                              <button onClick={() => setDeleteConfirmation(p.id)} className="text-zinc-400 hover:text-red-400 p-2 transition-colors" title="Delete Performer">
+                                  <Trash2 size={18} />
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
       )}
 
       {activeTab === 'payments' && (
@@ -410,27 +744,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ bookings, performers, d
              )}
         </div>
       )}
-      
-       <div className="card-base !p-6">
-         <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-3"><UserCog />Performer Profiles</h2>
-         <ul className="space-y-2 max-h-60 overflow-y-auto">
-            {performers.map(p => (
-                <li key={p.id} className="flex justify-between items-center bg-zinc-900/70 p-3 rounded-md border border-zinc-700/50 hover:bg-zinc-800/80 transition-colors">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${p.status === 'available' ? 'bg-green-500' : p.status === 'busy' ? 'bg-yellow-500' : 'bg-zinc-500'}`}></div>
-                        <span className="text-white font-medium">{p.name}</span>
-                        <span className="text-xs text-zinc-500 hidden sm:inline-block">({p.status})</span>
-                    </div>
-                    <button 
-                        onClick={() => onViewPerformer(p)}
-                        className="text-xs bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-1.5 px-3 rounded flex items-center gap-2 transition-colors"
-                    >
-                        <Eye size={14} /> View Profile
-                    </button>
-                </li>
-            ))}
-         </ul>
-      </div>
+
+      {activeTab === 'analytics' && (
+        <div className="card-base !p-6">
+            <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-3"><PieChart /> Service Popularity Analytics</h2>
+            <div className="h-[400px] w-full mt-6">
+                <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart data={serviceAnalytics} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+                        <XAxis type="number" stroke="#9CA3AF" />
+                        <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={150} tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                            contentStyle={{ backgroundColor: '#18181B', borderColor: '#27272A', color: '#F4F4F5' }}
+                            itemStyle={{ color: '#F97316' }}
+                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <Bar dataKey="count" name="Bookings Count" fill="#F97316" radius={[0, 4, 4, 0]} />
+                    </RechartsBarChart>
+                </ResponsiveContainer>
+            </div>
+            <p className="text-center text-sm text-zinc-500 mt-4">Total number of times each service has been requested in bookings.</p>
+        </div>
+      )}
     </div>
   );
 };
