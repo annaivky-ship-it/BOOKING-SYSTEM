@@ -2,8 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { Role, Communication, Profile, Performer } from '../types';
 import { Bell, Inbox, CheckCheck, Settings, Search, LogIn, LogOut, LayoutDashboard, Users, UserCog, Shield, ChevronDown } from 'lucide-react';
-// Supabase types - using placeholder types for demo mode
-type Session = any;
+import type { Session } from '@supabase/supabase-js';
 
 interface HeaderProps {
   children?: React.ReactNode;

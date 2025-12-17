@@ -21,8 +21,7 @@ import { api } from './services/api';
 import type { Performer, Booking, Role, PerformerStatus, BookingStatus, DoNotServeEntry, DoNotServeStatus, Communication, Profile } from './types';
 import { allServices } from './data/mockData';
 import { calculateBookingCost } from './utils/bookingUtils';
-// Supabase types - using placeholder types for demo mode
-type Session = any;
+import type { Session } from '@supabase/supabase-js';
 
 type GalleryView = 'available_now' | 'future_bookings';
 
