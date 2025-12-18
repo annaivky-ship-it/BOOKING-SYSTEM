@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup:supabase": "node setup-supabase.js",
+    "setup:auto": "node auto-setup-supabase.js"
   },
   "dependencies": {
     "@google/genai": "^1.11.0",
