@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Performer, Service, Booking, PerformerStatus } from '../types';
 import { allServices } from '../data/mockData';
-import { ArrowLeft, Briefcase, Sparkles, Clock, AlertCircle, ChevronDown, Plus, Check, CalendarCheck, CalendarPlus, RefreshCcw, Camera, X } from 'lucide-react';
+import { ArrowLeft, Briefcase, Sparkles, Clock, AlertCircle, ChevronDown, Plus, Check, CalendarCheck, CalendarPlus, RefreshCcw, Camera, X, Shuffle, History, ChevronUp } from 'lucide-react';
 
 interface PerformerProfileProps {
   performer: Performer;
@@ -25,6 +25,8 @@ const statusConfig: Record<PerformerStatus, { label: string; classes: string; do
 const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook, isSelected, onToggleSelection, bookings, canEditStatus, onStatusChange }) => {
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [gallerySortMode, setGallerySortMode] = useState<'default' | 'random'>('default');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
   const performerServices = useMemo(() => {
     return allServices.filter(service => performer.service_ids.includes(service.id));
@@ -48,8 +50,15 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
         .sort((a, b) => new Date(`${a.event_date}T${a.event_time}`).getTime() - new Date(`${b.event_date}T${b.event_time}`).getTime());
   }, [bookings]);
 
-  const toggleExpand = (id: string) => {
+  const toggleExpandService = (id: string) => {
     setExpandedServiceId(prev => prev === id ? null : id);
+  };
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories(prev => ({
+        ...prev,
+        [category]: !prev[category]
+    }));
   };
 
   const handleStatusToggle = () => {
@@ -64,6 +73,18 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
   };
 
   const statusStyle = statusConfig[performer.status];
+
+  const displayGallery = useMemo(() => {
+    const urls = [...performer.gallery_urls];
+    if (gallerySortMode === 'random') {
+      for (let i = urls.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [urls[i], urls[j]] = [urls[j], urls[i]];
+      }
+      return urls;
+    }
+    return urls;
+  }, [performer.gallery_urls, gallerySortMode]);
 
   return (
     <div className="animate-fade-in">
@@ -96,7 +117,6 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
                   className="rounded-2xl shadow-2xl shadow-black/50 w-full h-auto object-cover aspect-[3/4] border-4 border-zinc-800 relative z-10"
                 />
                 
-                {/* Status Badge / Toggle */}
                 <button
                     onClick={handleStatusToggle}
                     disabled={!canEditStatus || performer.status === 'pending'}
@@ -187,13 +207,33 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
           
           {performer.gallery_urls && performer.gallery_urls.length > 0 && (
              <div className="mb-12">
-                <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                    <Camera className="h-7 w-7 text-orange-500" />
-                    Photo Gallery
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <h3 className="text-3xl font-bold text-white flex items-center gap-3">
+                      <Camera className="h-7 w-7 text-orange-500" />
+                      Photo Gallery
+                  </h3>
+                  <div className="flex items-center gap-2 bg-zinc-800/50 p-1 rounded-lg border border-zinc-700 w-fit">
+                      <button 
+                          onClick={() => setGallerySortMode('default')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${gallerySortMode === 'default' ? 'bg-orange-500 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
+                          title="Sort by Date Uploaded"
+                      >
+                          <History size={14} />
+                          Date
+                      </button>
+                      <button 
+                          onClick={() => setGallerySortMode('random')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${gallerySortMode === 'random' ? 'bg-orange-500 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
+                          title="Randomly Shuffle"
+                      >
+                          <Shuffle size={14} />
+                          Shuffle
+                      </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {performer.gallery_urls.map((url, index) => (
-                        <div key={index} className="aspect-square rounded-xl overflow-hidden cursor-pointer border border-zinc-800 hover:border-orange-500 transition-colors group relative" onClick={() => setSelectedImage(url)}>
+                    {displayGallery.map((url, index) => (
+                        <div key={`${url}-${index}`} className="aspect-square rounded-xl overflow-hidden cursor-pointer border border-zinc-800 hover:border-orange-500 transition-colors group relative" onClick={() => setSelectedImage(url)}>
                             <img 
                                 src={url} 
                                 alt={`${performer.name} gallery ${index + 1}`} 
@@ -207,42 +247,53 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
           )}
 
            {/* Services Section */}
-           <div>
+           <div className="mb-12">
                <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
                    <Briefcase className="h-7 w-7 text-orange-500" />
                    Services
                </h3>
                <div className="grid gap-4">
-                   {Object.entries(servicesByCategory).map(([category, services]) => (
-                       <div key={category} className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
-                           <div className="bg-zinc-800/50 px-6 py-3 border-b border-zinc-800">
-                               <h4 className="font-bold text-orange-400">{category}</h4>
-                           </div>
-                           <div className="p-2">
-                               {services.map(service => (
-                                   <div key={service.id} className="border-b border-zinc-800/50 last:border-0">
-                                       <button 
-                                           onClick={() => toggleExpand(service.id)}
-                                           className="w-full flex items-center justify-between p-4 text-left hover:bg-zinc-800/30 transition-colors rounded-lg"
-                                       >
-                                           <div>
-                                               <span className="font-semibold text-white block">{service.name}</span>
-                                               <span className="text-xs text-orange-400 font-mono">${service.rate} {service.rate_type === 'per_hour' ? '/hr' : ' flat'}</span>
-                                           </div>
-                                            {expandedServiceId === service.id ? <ChevronDown className="text-zinc-500" size={18}/> : <ChevronDown className="text-zinc-500 -rotate-90" size={18}/>}
-                                       </button>
-                                       {expandedServiceId === service.id && (
-                                           <div className="px-4 pb-4 pt-0 text-sm text-zinc-400 pl-4 border-l-2 border-orange-500/20 ml-4 mb-2 animate-fade-in-down">
-                                               <p>{service.description}</p>
-                                               {service.min_duration_hours && <p className="mt-2 text-xs opacity-70">Min Duration: {service.min_duration_hours} hr</p>}
-                                               {service.booking_notes && <div className="mt-2 flex items-start gap-1.5 text-xs text-yellow-500/80 bg-yellow-900/10 p-2 rounded"><AlertCircle size={12} className="mt-0.5"/> {service.booking_notes}</div>}
-                                           </div>
-                                       )}
+                   {Object.entries(servicesByCategory).map(([category, services]) => {
+                       const isCollapsed = !!collapsedCategories[category];
+                       return (
+                           <div key={category} className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+                               <button 
+                                   onClick={() => toggleCategory(category)}
+                                   className="w-full flex items-center justify-between bg-zinc-800/50 px-6 py-4 border-b border-zinc-800 hover:bg-zinc-800 transition-colors text-left"
+                               >
+                                   <h4 className="font-bold text-orange-400 text-lg">{category}</h4>
+                                   <div className="text-zinc-500">
+                                       {isCollapsed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
                                    </div>
-                               ))}
+                               </button>
+                               {!isCollapsed && (
+                                   <div className="p-2 animate-fade-in">
+                                       {services.map(service => (
+                                           <div key={service.id} className="border-b border-zinc-800/50 last:border-0">
+                                               <button 
+                                                   onClick={() => toggleExpandService(service.id)}
+                                                   className="w-full flex items-center justify-between p-4 text-left hover:bg-zinc-800/30 transition-colors rounded-lg"
+                                               >
+                                                   <div>
+                                                       <span className="font-semibold text-white block">{service.name}</span>
+                                                       <span className="text-xs text-orange-400 font-mono">${service.rate} {service.rate_type === 'per_hour' ? '/hr' : ' flat'}</span>
+                                                   </div>
+                                                    {expandedServiceId === service.id ? <ChevronDown className="text-zinc-500" size={18}/> : <ChevronDown className="text-zinc-500 -rotate-90" size={18}/>}
+                                               </button>
+                                               {expandedServiceId === service.id && (
+                                                   <div className="px-4 pb-4 pt-0 text-sm text-zinc-400 pl-4 border-l-2 border-orange-500/20 ml-4 mb-2 animate-fade-in-down">
+                                                       <p>{service.description}</p>
+                                                       {service.min_duration_hours && <p className="mt-2 text-xs opacity-70">Min Duration: {service.min_duration_hours} hr</p>}
+                                                       {service.booking_notes && <div className="mt-2 flex items-start gap-1.5 text-xs text-yellow-500/80 bg-yellow-900/10 p-2 rounded"><AlertCircle size={12} className="mt-0.5"/> {service.booking_notes}</div>}
+                                                   </div>
+                                               )}
+                                           </div>
+                                       ))}
+                                   </div>
+                               )}
                            </div>
-                       </div>
-                   ))}
+                       );
+                   })}
                </div>
            </div>
 

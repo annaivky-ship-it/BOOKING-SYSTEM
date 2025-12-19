@@ -5,8 +5,8 @@ import { allServices } from '../data/mockData';
 import { PAY_ID_EMAIL, PAY_ID_NAME, DEPOSIT_PERCENTAGE } from '../constants';
 import PayIDSimulationModal from './PayIDSimulationModal';
 import InputField from './InputField';
-import { ArrowLeft, User, Mail, Phone, Calendar, Clock, MapPin, PartyPopper, UploadCloud, ShieldCheck, Copy, Send, Briefcase, ListChecks, Info, AlertTriangle, ShieldX, CheckCircle, ChevronDown, FileText, LoaderCircle, DollarSign, Users as UsersIcon, Wallet, CreditCard } from 'lucide-react';
-import { calculateBookingCost } from '../utils/bookingUtils';
+import { ArrowLeft, User, Mail, Phone, Calendar, Clock, MapPin, PartyPopper, UploadCloud, ShieldCheck, Copy, Send, Briefcase, ListChecks, Info, AlertTriangle, ShieldX, CheckCircle, ChevronDown, FileText, LoaderCircle, DollarSign, Users as UsersIcon, Wallet, CreditCard, ExternalLink } from 'lucide-react';
+import { calculateBookingCost, generatePayIDLink } from '../utils/bookingUtils';
 
 export interface BookingFormState {
   fullName: string;
@@ -283,6 +283,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     };
 
     const handlePrev = () => {
+        if (isSubmitting) return;
         setCurrentStep(prev => prev - 1);
         window.scrollTo(0, 0);
     };
@@ -298,7 +299,6 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             const result = await onBookingRequest(form, performers);
             if (result.success && result.bookingIds) {
                 setBookingIds(result.bookingIds);
-                // Rely on useEffect to set stage based on booking status (which handles rejection)
             } else {
                 throw new Error(result.message);
             }
@@ -334,7 +334,6 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
         
         setIsSubmitting(true);
         try {
-            // AUTOMATED WORKFLOW: Automatically confirm booking instead of setting to pending
             await Promise.all(bookingIds.map(id => onUpdateBookingStatus(id, 'confirmed')));
             const firstBookingId = bookingIds[0];
             await addCommunication({ sender: 'System', recipient: 'admin', message: `💸 INSTANT PAYID: Payment verified for booking #${firstBookingId.slice(0,8)}. System AUTO-CONFIRMED the booking.`, booking_id: firstBookingId, type: 'admin_message' });
@@ -359,7 +358,6 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
             <div key={currentStep} className="animate-fade-in">
                 {currentStep === 1 && (
                     <div className="space-y-6 card-base !p-6 !bg-zinc-950/50">
-                        {/* Freelance Disclaimer */}
                          <div className="mb-6 bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 flex items-start gap-3">
                              <Info className="text-blue-400 mt-1 flex-shrink-0" size={20} />
                              <p className="text-sm text-blue-200">
@@ -368,9 +366,9 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                          </div>
 
                          <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4">Your Details</h3>
-                         <InputField icon={<User />} type="text" name="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} required />
-                         <InputField icon={<Mail />} type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} required />
-                         <InputField icon={<Phone />} type="tel" name="mobile" placeholder="Mobile (e.g., 0412 345 678)" value={form.mobile} onChange={handleChange} required pattern="^(\+614|04)\d{8}$" title="Please enter a valid Australian mobile number, e.g., 0412345678 or +61412345678"/>
+                         <InputField icon={<User />} type="text" name="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} required disabled={isSubmitting} />
+                         <InputField icon={<Mail />} type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} required disabled={isSubmitting} />
+                         <InputField icon={<Phone />} type="tel" name="mobile" placeholder="Mobile (e.g., 0412 345 678)" value={form.mobile} onChange={handleChange} required pattern="^(\+614|04)\d{8}$" title="Please enter a valid Australian mobile number, e.g., 0412345678" disabled={isSubmitting} />
                     </div>
                 )}
 
@@ -378,17 +376,17 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                     <div className="space-y-6 card-base !p-6 !bg-zinc-950/50">
                          <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4">Event Details</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputField icon={<Calendar />} type="date" name="eventDate" value={form.eventDate} onChange={handleChange} required />
-                            <InputField icon={<Clock />} type="time" name="eventTime" value={form.eventTime} onChange={handleChange} required />
+                            <InputField icon={<Calendar />} type="date" name="eventDate" value={form.eventDate} onChange={handleChange} required disabled={isSubmitting} />
+                            <InputField icon={<Clock />} type="time" name="eventTime" value={form.eventTime} onChange={handleChange} required disabled={isSubmitting} />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputField icon={<Clock />} type="number" name="duration" placeholder="Duration (hours)" value={form.duration} onChange={handleChange} required min="1" />
-                            <InputField icon={<UsersIcon />} type="number" name="numberOfGuests" placeholder="Number of Guests" value={form.numberOfGuests} onChange={handleChange} required min="1" />
+                            <InputField icon={<Clock />} type="number" name="duration" placeholder="Duration (hours)" value={form.duration} onChange={handleChange} required min="1" disabled={isSubmitting} />
+                            <InputField icon={<UsersIcon />} type="number" name="numberOfGuests" placeholder="Number of Guests" value={form.numberOfGuests} onChange={handleChange} required min="1" disabled={isSubmitting} />
                         </div>
-                        <InputField icon={<MapPin />} type="text" name="eventAddress" placeholder="Event Address" value={form.eventAddress} onChange={handleChange} required />
+                        <InputField icon={<MapPin />} type="text" name="eventAddress" placeholder="Event Address" value={form.eventAddress} onChange={handleChange} required disabled={isSubmitting} />
                         <div className="relative">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500"><PartyPopper /></div>
-                            <select name="eventType" value={form.eventType} onChange={handleChange} required className="input-base input-with-icon appearance-none">
+                            <select name="eventType" value={form.eventType} onChange={handleChange} required className="input-base input-with-icon appearance-none" disabled={isSubmitting}>
                                 <option value="" disabled>Select Event Type</option>
                                 {eventTypes.map(type => <option key={type} value={type}>{type}</option>)}
                             </select>
@@ -402,6 +400,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                                 value={form.client_message}
                                 onChange={handleChange}
                                 className="input-base input-with-icon h-24 resize-y"
+                                disabled={isSubmitting}
                             />
                         </div>
                     </div>
@@ -423,6 +422,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                                         checked={form.selectedServices.includes(service.id)}
                                         onChange={() => handleServiceChange(service.id)}
                                         className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-600 focus:ring-orange-500"
+                                        disabled={isSubmitting}
                                         />
                                         <div className="ml-3 text-sm">
                                             <span className="font-medium text-white">{service.name}</span>
@@ -459,7 +459,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                         <div className="mt-6">
                             <label htmlFor="terms-check-booking" className="flex items-center p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-700/70 hover:border-zinc-600 transition-all duration-200">
                                 <div className="relative h-6 w-6 flex-shrink-0">
-                                <input id="terms-check-booking" type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} className="appearance-none h-6 w-6 rounded-md border-2 border-zinc-600 bg-zinc-900 checked:bg-orange-500 checked:border-orange-500 transition-all" />
+                                <input id="terms-check-booking" type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} className="appearance-none h-6 w-6 rounded-md border-2 border-zinc-600 bg-zinc-900 checked:bg-orange-500 checked:border-orange-500 transition-all" disabled={isSubmitting} />
                                 {agreedTerms && <CheckCircle className="h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white pointer-events-none" />}
                                 </div>
                                 <span className="ml-4 text-zinc-200">
@@ -527,7 +527,6 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-x-8 gap-y-10 mb-10">
-                        {/* Left Column: Event Details */}
                         <div className="space-y-5">
                             <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 flex items-center gap-2"><Briefcase size={20}/> Event Details</h3>
                             <DetailItem icon={<User />} label="Performer(s)" value={performers.map(p => p.name).join(', ')} />
@@ -538,7 +537,6 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                             <DetailItem icon={<Clock />} label="Duration" value={`${form.duration} hours`} />
                         </div>
 
-                        {/* Right Column: Financials & Services */}
                         <div className="space-y-5">
                              <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 flex items-center gap-2"><DollarSign size={20}/> Financial Summary</h3>
                              <DetailItem icon={<DollarSign />} label="Total Cost" value={`$${totalCost.toFixed(2)}`} />
@@ -572,6 +570,8 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     }
 
     if (stage === 'deposit_pending') {
+        const payLink = generatePayIDLink(depositAmount, `DEPOSIT-${bookingIds[0]?.slice(0, 8) || 'FLAVOR'}`);
+
         return (
             <>
             {isPayIdModalOpen && (
@@ -581,7 +581,15 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                     onClose={() => setIsPayIdModalOpen(false)}
                 />
             )}
-            <div className="animate-fade-in max-w-3xl mx-auto">
+            <div className="animate-fade-in max-w-3xl mx-auto relative">
+                 {/* Loading Overlay for Deposit Stage */}
+                 {isSubmitting && (
+                    <div className="absolute inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center animate-fade-in">
+                        <LoaderCircle className="h-12 w-12 text-orange-500 animate-spin mb-4" />
+                        <p className="text-white font-bold text-lg">Finalizing your booking...</p>
+                    </div>
+                )}
+
                 <div className="card-base !p-0 !bg-transparent !border-0">
                     <div className="p-4 mb-6 text-green-200 bg-green-900/30 rounded-lg border border-green-500 text-center">
                         <span className="font-medium">Application Approved!</span> Your initial application has been vetted and approved. Please pay the deposit to confirm the booking.
@@ -591,17 +599,27 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                         <h2 className="text-3xl font-bold text-white mb-2">Deposit Required</h2>
                         <p className="text-zinc-300 mb-6">To confirm your booking with <strong>{performers.map(p => p.name).join(', ')}</strong>, please pay the {DEPOSIT_PERCENTAGE * 100}% deposit.</p>
 
-                        <button 
-                            onClick={() => setIsPayIdModalOpen(true)}
-                            className="w-full py-4 text-lg flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transform hover:-translate-y-0.5 mb-6"
-                            disabled={isSubmitting}
-                        >
-                           🚀 Pay now with PayID (Instant Confirmation)
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                            <button 
+                                onClick={() => window.open(payLink, '_self')}
+                                className="w-full py-4 text-sm flex items-center justify-center gap-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-all duration-300 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transform hover:-translate-y-0.5"
+                                disabled={isSubmitting}
+                            >
+                               <ExternalLink className="h-5 w-5" />
+                               Launch Banking App
+                            </button>
+                            <button 
+                                onClick={() => setIsPayIdModalOpen(true)}
+                                className="w-full py-4 text-sm flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transform hover:-translate-y-0.5"
+                                disabled={isSubmitting}
+                            >
+                               🚀 NPP Instant Pay
+                            </button>
+                        </div>
 
                         <div className="relative my-6">
                             <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-zinc-700" /></div>
-                            <div className="relative flex justify-center"><span className="bg-zinc-900 px-2 text-zinc-500 text-sm">Or Manually Upload Receipt</span></div>
+                            <div className="relative flex justify-center"><span className="bg-zinc-900 px-2 text-zinc-500 text-sm">Or Copy Details Manually</span></div>
                         </div>
 
                         <div className="space-y-4 bg-zinc-950 p-6 rounded-lg mb-8 border border-zinc-700">
@@ -630,7 +648,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                         </div>
 
                         <div className="space-y-4 mb-6">
-                            <FileUploadField file={receiptFile} setFile={setReceiptFile} id="receiptUpload" label="Upload Deposit Receipt" accept="image/png, image/jpeg, application/pdf" />
+                            <FileUploadField file={receiptFile} setFile={setReceiptFile} id="receiptUpload" label="Step 2: Upload Deposit Receipt" accept="image/png, image/jpeg, application/pdf" />
                         </div>
 
                         <button 
@@ -639,7 +657,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                             className="btn-primary w-full py-3 text-base flex items-center justify-center gap-2"
                         >
                            {isSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
-                           Submit Manual Receipt
+                           Confirm Manual Submission
                         </button>
                     </div>
                 </div>
@@ -649,8 +667,19 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     }
 
     return (
-        <div className="animate-fade-in">
-            <button onClick={onBack} className="mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2">
+        <div className="animate-fade-in relative">
+            {/* Global Form Loading Overlay */}
+            {isSubmitting && (
+                <div className="absolute inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center animate-fade-in -top-16 -bottom-8">
+                    <div className="bg-zinc-900 p-8 rounded-2xl border border-zinc-700 shadow-2xl flex flex-col items-center">
+                        <LoaderCircle className="h-16 w-16 text-orange-500 animate-spin mb-6" />
+                        <h3 className="text-white font-bold text-xl mb-2">Securing your request...</h3>
+                        <p className="text-zinc-400 text-center max-w-xs">We're notifying the entertainers and checking availability. Please don't refresh.</p>
+                    </div>
+                </div>
+            )}
+
+            <button onClick={onBack} disabled={isSubmitting} className={`mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <ArrowLeft className="h-5 w-5" />
                 Back
             </button>
@@ -688,12 +717,13 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                         <button 
                             type="button" 
                             onClick={handlePrev} 
-                            className={`bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                            disabled={isSubmitting}
+                            className={`bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 ${currentStep === 1 ? 'opacity-0 pointer-events-none' : (isSubmitting ? 'opacity-50 cursor-not-allowed' : 'opacity-100')}`}
                         >
                             Back
                         </button>
                        {currentStep < 4 ? (
-                          <button type="button" onClick={handleNext} className="btn-primary text-lg px-8 py-3">
+                          <button type="button" onClick={handleNext} className="btn-primary text-lg px-8 py-3" disabled={isSubmitting}>
                               Next
                           </button>
                        ) : (

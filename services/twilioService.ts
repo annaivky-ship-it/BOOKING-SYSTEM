@@ -42,7 +42,9 @@ export const twilioService = {
   },
 
   notifyClientDepositNeeded: async (booking: Booking) => {
-    const msg = `Booking Approved! Please log in to Flavor Entertainers to pay your deposit and secure your date with ${booking.performer?.name}.`;
+    // In production, this would be your real domain
+    const paymentLink = `https://flavor.entertainers.com.au/pay/${booking.id.slice(0, 8)}`;
+    const msg = `✅ Booking Approved! To secure your date with ${booking.performer?.name}, please pay the deposit here: ${paymentLink}\n\nYou can pay instantly using PayID.`;
     await callEdgeFunction(booking.client_phone, msg, 'sms');
   },
 

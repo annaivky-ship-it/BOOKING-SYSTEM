@@ -1,6 +1,6 @@
 
 import { allServices } from '../data/mockData';
-import { DEPOSIT_PERCENTAGE, REFERRAL_FEE_PERCENTAGE } from '../constants';
+import { DEPOSIT_PERCENTAGE, REFERRAL_FEE_PERCENTAGE, PAY_ID_EMAIL } from '../constants';
 
 export const calculateBookingCost = (durationHours: number, serviceIds: string[], numPerformers: number) => {
     if (serviceIds.length === 0 || numPerformers === 0) return { totalCost: 0, depositAmount: 0, referralFee: 0 };
@@ -26,4 +26,19 @@ export const calculateBookingCost = (durationHours: number, serviceIds: string[]
     const depositAmount = totalCost * DEPOSIT_PERCENTAGE;
     const referralFee = totalCost * REFERRAL_FEE_PERCENTAGE;
     return { totalCost, depositAmount, referralFee };
+};
+
+/**
+ * Generates a payto: URI (RFC 8905) for NPP / PayID.
+ * This is supported by many modern banking apps to pre-fill payment details.
+ */
+export const generatePayIDLink = (amount: number, reference: string, email: string = PAY_ID_EMAIL) => {
+  // Format: payto://payid/<identifier>?amount=<amount>&currency=AUD&description=<reference>
+  const baseUrl = `payto://payid/${email}`;
+  const params = new URLSearchParams({
+    amount: amount.toFixed(2),
+    currency: 'AUD',
+    description: reference.substring(0, 18), // Banks often have a 18-20 char limit for NPP references
+  });
+  return `${baseUrl}?${params.toString()}`;
 };
