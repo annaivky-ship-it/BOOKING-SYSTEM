@@ -27,3 +27,12 @@ next-env.d.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary files and archives
+*.tar.gz
+*.zip
+*.tar
+*.rar
+
+# Supabase
+.supabase/
