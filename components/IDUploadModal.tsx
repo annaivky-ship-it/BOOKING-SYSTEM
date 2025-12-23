@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+himport React, { useState } from 'react';
 import { X, Upload, FileText, AlertCircle, Check, LoaderCircle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
@@ -79,7 +79,7 @@ const IDUploadModal: React.FC<IDUploadModalProps> = ({
                   const filePath = `id_documents/${fileName}`;
 
             const { error: uploadError, data } = await supabase.storage
-                    .from('id_documents')
+                    .from('id-documents')
                     .upload(filePath, file, { upsert: true });
 
             if (uploadError) {
@@ -88,7 +88,7 @@ const IDUploadModal: React.FC<IDUploadModalProps> = ({
 
             // Get the public URL
             const { data: publicData } = supabase.storage
-                    .from('id_documents')
+                    .from('id-documents')
                     .getPublicUrl(filePath);
 
             onSuccess(publicData.publicUrl || filePath);
