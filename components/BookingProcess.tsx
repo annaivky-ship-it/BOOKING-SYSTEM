@@ -7,6 +7,7 @@ import PayIDSimulationModal from './PayIDSimulationModal';
 import InputField from './InputField';
 import { ArrowLeft, User, Mail, Phone, Calendar, Clock, MapPin, PartyPopper, UploadCloud, ShieldCheck, Copy, Send, Briefcase, ListChecks, Info, AlertTriangle, ShieldX, CheckCircle, ChevronDown, FileText, LoaderCircle, DollarSign, Users as UsersIcon, Wallet, CreditCard, ExternalLink } from 'lucide-react';
 import { calculateBookingCost, generatePayIDLink } from '../utils/bookingUtils';
+import IDUploadModal from './IDUploadModal';
 
 export interface BookingFormState {
   fullName: string;
@@ -173,6 +174,7 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
     const [agreedTerms, setAgreedTerms] = useState(false);
     const [isPayIdModalOpen, setIsPayIdModalOpen] = useState(false);
     const [isVerifiedBooker, setIsVerifiedBooker] = useState(false);
+    const [isIDUploadOpen, setIsIDUploadOpen] = useState(false);
 
     useEffect(() => {
       const checkVerifiedBooker = () => {
@@ -722,6 +724,13 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                         >
                             Back
                         </button>
+                                  <button
+                                                  type="button"
+                                                  onClick={() => setIsIDUploadOpen(true)}
+                                                  className="btn-primary text-lg px-8 py-3 rounded-lg transition-all duration-300"
+                                                >
+                                                📄 Upload Client ID
+                                  </button>button></button>
                        {currentStep < 4 ? (
                           <button type="button" onClick={handleNext} className="btn-primary text-lg px-8 py-3" disabled={isSubmitting}>
                               Next
@@ -737,6 +746,19 @@ const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onB
                  </div>
             </form>
         </div>
+            <IDUploadModal
+              isOpen={isIDUploadOpen}
+          onClose={() => setIsIDUploadOpen(false)}
+          bookingId={form.email}
+        clientName={form.fullName}
+        onSuccess={(filePath) => {
+                    console.log('ID uploaded successfully:', filePath);
+                    // You can add additional logic here to save the path to the database
+        }}
+        onError={(error) => {
+                    console.error('ID upload failed:', error);
+        }}
+      />
     );
 };
 
