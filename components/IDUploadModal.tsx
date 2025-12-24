@@ -1,4 +1,4 @@
-himport React, { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Upload, FileText, AlertCircle, Check, LoaderCircle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
