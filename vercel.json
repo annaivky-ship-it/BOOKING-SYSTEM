@@ -1,0 +1,13 @@
+{
+    "buildCommand": "cd booking-platform && npm install && npm run build",
+    "installCommand": "npm install",
+    "outputDirectory": "booking-platform/dist",
+    "framework": "vite",
+    "projectSettings": {
+          "sourceFilesOutsideRootDirectory": true
+    },
+    "env": [
+          "VITE_SUPABASE_URL",
+          "VITE_SUPABASE_ANON_KEY"
+    ]
+}
