@@ -2,12 +2,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Performer, Booking, BookingStatus, DoNotServeEntry, Communication, Service } from '../types';
 import { allServices } from '../data/mockData';
-import { PAY_ID_EMAIL, PAY_ID_NAME, DEPOSIT_PERCENTAGE } from '../constants';
-import PayIDSimulationModal from './PayIDSimulationModal';
 import InputField from './InputField';
-import { ArrowLeft, User, Mail, Phone, Calendar, Clock, MapPin, PartyPopper, UploadCloud, ShieldCheck, Copy, Send, Briefcase, ListChecks, Info, AlertTriangle, ShieldX, CheckCircle, ChevronDown, FileText, LoaderCircle, DollarSign, Users as UsersIcon, Wallet, CreditCard, ExternalLink } from 'lucide-react';
-import { calculateBookingCost, generatePayIDLink } from '../utils/bookingUtils';
-import IDUploadModal from './IDUploadModal';
+// Added FileText to imports
+import { ArrowLeft, User, Mail, Phone, MapPin, FileText, PartyPopper, ShieldCheck, Zap, CheckCircle, Check, LoaderCircle, Users, Clock, Plus, Minus, Info, Trash2, Calendar, MessageSquare, ArrowRight } from 'lucide-react';
+import { calculateBookingCost, generateCalendarLinks } from '../utils/bookingUtils';
 
 export interface BookingFormState {
   fullName: string;
@@ -20,7 +18,9 @@ export interface BookingFormState {
   duration: string;
   numberOfGuests: string;
   selectedServices: string[];
+  serviceDurations: Record<string, number>;
   idDocument: File | null;
+  confirmationDocument: File | null;
   client_message: string;
 }
 
@@ -35,113 +35,33 @@ interface BookingProcessProps {
   addCommunication: (commData: Omit<Communication, 'id' | 'created_at' | 'read'>) => Promise<void>;
   onShowPrivacyPolicy: () => void;
   onShowTermsOfService: () => void;
+  initialPreferAsap?: boolean;
 }
-
-type BookingStage = 'form' | 'performer_acceptance_pending' | 'vetting_pending' | 'deposit_pending' | 'deposit_confirmation_pending' | 'confirmed' | 'rejected';
-
-
-const eventTypes = ['Bucks Party', 'Birthday Party', 'Corporate Event', 'Hens Party', 'Private Gathering', 'Other'];
-
-interface FileUploadFieldProps {
-  file: File | null;
-  setFile: (f: File | null) => void;
-  id: string;
-  label: string;
-  accept: string;
-}
-
-const FileUploadField: React.FC<FileUploadFieldProps> = ({ file, setFile, id, label, accept }) => {
-    const [error, setError] = useState('');
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            if (selectedFile.size > 5 * 1024 * 1024) { // 5MB limit
-                setError('File size must be under 5MB.');
-                setFile(null);
-            } else {
-                setError('');
-                setFile(selectedFile);
-            }
-        }
-    };
-    return (
-        <div>
-            <label htmlFor={id} className="block text-sm font-medium text-zinc-300 mb-2">{label}</label>
-            <div className="mt-2 flex justify-center rounded-lg border-2 border-dashed border-zinc-700 px-6 py-10 bg-zinc-900/50 hover:border-orange-500 transition-colors">
-                <div className="text-center">
-                    <UploadCloud className="mx-auto h-12 w-12 text-zinc-500" />
-                    <div className="mt-4 flex text-sm leading-6 text-zinc-400">
-                        <label htmlFor={id} className="relative cursor-pointer rounded-md font-semibold text-orange-500 hover:text-orange-400">
-                            <span>Upload a file</span>
-                            <input id={id} name={id} type="file" className="sr-only" onChange={handleFileChange} accept={accept} />
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs leading-5 text-zinc-500">PNG, JPG, PDF up to 5MB</p>
-                    {file && <p className="text-sm mt-2 text-green-400 font-semibold">{file.name}</p>}
-                    {error && <p className="text-sm mt-2 text-red-400">{error}</p>}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ErrorDisplay = ({ message }: { message: string | null }) => message ? (
-    <div className="p-4 mb-6 text-sm text-red-200 bg-red-900/50 rounded-lg border border-red-500 flex items-start gap-3" role="alert">
-        <AlertTriangle className="h-5 w-5 mt-0.5 text-red-400 flex-shrink-0" />
-        <div>
-            <span className="font-bold">Error:</span> {message}
-        </div>
-    </div>
-) : null;
-
-interface StatusScreenProps {
-  icon: React.ElementType;
-  title: string;
-  children: React.ReactNode;
-  bgColor: string;
-  buttonText: string;
-  onButtonClick: () => void;
-}
-    
-const StatusScreen: React.FC<StatusScreenProps> = ({ icon: Icon, title, children, bgColor, buttonText, onButtonClick }) => (
-  <div className={`flex flex-col items-center justify-center min-h-[60vh] text-center p-4 animate-fade-in ${bgColor}`}>
-    <div className="bg-black/40 backdrop-blur-md p-8 sm:p-12 rounded-2xl border border-white/10 shadow-2xl max-w-2xl w-full">
-        <Icon className="mx-auto h-20 w-20 text-orange-400 mb-6" />
-        <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{title}</h2>
-        <div className="text-zinc-300 mt-2 mb-8 max-w-lg mx-auto leading-relaxed">
-          {children}
-        </div>
-        <button onClick={onButtonClick} className="btn-primary px-8 py-3 text-lg">
-            {buttonText}
-        </button>
-    </div>
-  </div>
-);
-
 
 const wizardSteps = [
-    { id: 1, name: 'Client Details', icon: User },
-    { id: 2, name: 'Event Details', icon: Calendar },
-    { id: 3, name: 'Services', icon: ListChecks },
-    { id: 4, name: 'Confirm & Submit', icon: ShieldCheck },
+    { id: 1, name: 'Details', icon: MapPin },
+    { id: 2, name: 'Confirm', icon: FileText },
+    { id: 3, name: 'Secure', icon: ShieldCheck },
 ];
 
 const ProgressIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => (
-    <nav aria-label="Progress">
-        <ol role="list" className="space-y-4 md:flex md:space-x-8 md:space-y-0 mb-10">
+    <nav aria-label="Booking Progress" className="mb-12 max-w-sm mx-auto">
+        <ol role="list" className="flex items-center justify-between">
             {wizardSteps.map((step, index) => {
                 const isCompleted = currentStep > step.id;
                 const isCurrent = currentStep === step.id;
 
                 return (
-                    <li key={step.name} className="md:flex-1">
-                        <div className={`group flex flex-col border-l-4 py-2 pl-4 transition-colors md:border-l-0 md:border-t-4 md:pl-0 md:pt-4 md:pb-0 ${isCompleted ? 'border-orange-500' : isCurrent ? 'border-orange-500' : 'border-zinc-700'}`}>
-                            <span className={`text-sm font-medium transition-colors ${isCompleted ? 'text-orange-400' : isCurrent ? 'text-orange-400' : 'text-zinc-400'}`}>
-                                Step {step.id}
-                            </span>
-                            <span className="text-sm font-medium text-white">{step.name}</span>
+                    <li key={step.name} className={`relative flex flex-col items-center flex-1`}>
+                        {index !== wizardSteps.length - 1 && (
+                            <div className={`absolute top-5 left-1/2 w-full h-[2px] -z-10 transition-colors duration-500 ${isCompleted ? 'bg-orange-500' : 'bg-zinc-800'}`}></div>
+                        )}
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 mb-2 ${isCompleted ? 'bg-orange-500 border-orange-500 text-white' : isCurrent ? 'bg-zinc-950 border-orange-500 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.3)]' : 'bg-zinc-950 border-zinc-800 text-zinc-700'}`}>
+                            {isCompleted ? <Check size={18} strokeWidth={3} /> : <step.icon size={18} />}
                         </div>
+                        <span className={`text-[9px] font-black uppercase tracking-[0.2em] transition-colors duration-500 ${isCurrent || isCompleted ? 'text-white' : 'text-zinc-700'}`}>
+                            {step.name}
+                        </span>
                     </li>
                 );
             })}
@@ -149,616 +69,329 @@ const ProgressIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) =
     </nav>
 );
 
-const DetailItem: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
-    <div className="flex items-start gap-3">
-        <div className="mt-1 text-orange-400 flex-shrink-0 h-5 w-5 flex items-center justify-center">{icon}</div>
-        <div>
-            <p className="text-sm text-zinc-400">{label}</p>
-            <p className="font-semibold text-white">{value}</p>
-        </div>
-    </div>
-);
-
-
-const BookingProcess: React.FC<BookingProcessProps> = ({ performers, onBack, onBookingSubmitted, bookings, onUpdateBookingStatus, onBookingRequest, doNotServeList, addCommunication, onShowPrivacyPolicy, onShowTermsOfService }) => {
-    const [stage, setStage] = useState<BookingStage>('form');
-    const [isSubmitting, setIsSubmitting] = useState(false);
+const BookingProcess: React.FC<BookingProcessProps> = ({ performers: initialPerformers, onBack, onBookingSubmitted, bookings, onUpdateBookingStatus, onBookingRequest, initialPreferAsap = true }) => {
     const [currentStep, setCurrentStep] = useState(1);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [stage, setStage] = useState<'form' | 'success'>('form');
+    const [selectedPerformers, setSelectedPerformers] = useState<Performer[]>(initialPerformers);
+
+    // Get today and tomorrow dates
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0];
+
     const [form, setForm] = useState<BookingFormState>({
-        fullName: '', email: '', mobile: '', eventDate: '', eventTime: '', eventAddress: '', eventType: '', duration: '2', numberOfGuests: '', selectedServices: [], idDocument: null, client_message: ''
+        fullName: '', email: '', mobile: '', 
+        eventDate: today, 
+        eventTime: 'ASAP', 
+        eventAddress: '', eventType: 'Private Event', duration: '2', numberOfGuests: '1-10', selectedServices: [], 
+        serviceDurations: {}, 
+        idDocument: null, confirmationDocument: null, client_message: ''
     });
-    const [receiptFile, setReceiptFile] = useState<File | null>(null);
-    const [bookingIds, setBookingIds] = useState<string[]>([]);
+    
     const [error, setError] = useState<string | null>(null);
-    const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
-    const [agreedTerms, setAgreedTerms] = useState(false);
-    const [isPayIdModalOpen, setIsPayIdModalOpen] = useState(false);
-    const [isVerifiedBooker, setIsVerifiedBooker] = useState(false);
-    const [isIDUploadOpen, setIsIDUploadOpen] = useState(false);
 
-    useEffect(() => {
-      const checkVerifiedBooker = () => {
-        if(!form.email && !form.mobile) return setIsVerifiedBooker(false);
-        const hasConfirmedBooking = bookings.some(b => 
-          b.status === 'confirmed' && (
-            (form.email && b.client_email.toLowerCase() === form.email.toLowerCase()) ||
-            (form.mobile && b.client_phone.replace(/\s+/g, '') === form.mobile.replace(/\s+/g, ''))
-          )
-        );
-        setIsVerifiedBooker(hasConfirmedBooking);
-      };
-      const debounceTimer = setTimeout(checkVerifiedBooker, 500);
-      return () => clearTimeout(debounceTimer);
-    }, [form.email, form.mobile, bookings]);
-
-    useEffect(() => {
-        if (!bookings || bookingIds.length === 0) return;
-
-        const currentBooking = bookings.find(b => b.id === bookingIds[0]);
-        if (!currentBooking) return;
-
-        const currentStatus = currentBooking.status;
-        
-        if (currentStatus === 'pending_performer_acceptance' && stage !== 'performer_acceptance_pending') {
-            setStage('performer_acceptance_pending');
-        } else if (currentStatus === 'pending_vetting' && stage !== 'vetting_pending') {
-            setStage('vetting_pending');
-        } else if (currentStatus === 'deposit_pending' && stage !== 'deposit_pending') {
-            setStage('deposit_pending');
-        } else if (currentStatus === 'pending_deposit_confirmation' && stage !== 'deposit_confirmation_pending') {
-            setStage('deposit_confirmation_pending');
-        } else if (currentStatus === 'confirmed' && stage !== 'confirmed') {
-            setStage('confirmed');
-        } else if (currentStatus === 'rejected' && stage !== 'rejected') {
-            setStage('rejected');
-        }
-    }, [bookings, bookingIds, stage]);
-
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-    
-    const handleServiceChange = (serviceId: string) => {
-        setForm(prev => {
-            const selectedServices = prev.selectedServices.includes(serviceId)
-                ? prev.selectedServices.filter(s => s !== serviceId)
-                : [...prev.selectedServices, serviceId];
-            return { ...prev, selectedServices };
-        });
-    };
-    
-    const availableServices = useMemo(() => {
-      const uniqueServiceIds = [...new Set(performers.flatMap(p => p.service_ids))];
-      return allServices.filter(s => uniqueServiceIds.includes(s.id));
-    }, [performers]);
-
-    const servicesByCategory = useMemo(() => {
-        return availableServices.reduce((acc, service) => {
-          (acc[service.category] = acc[service.category] || []).push(service);
-          return acc;
-        }, {} as Record<string, typeof availableServices>);
-    }, [availableServices]);
-
-    const { totalCost, depositAmount } = useMemo(() => {
-        return calculateBookingCost(Number(form.duration), form.selectedServices, performers.length);
-    }, [form.selectedServices, form.duration, performers.length]);
-    
-    const validateStep = (step: number): boolean => {
-        setError(null);
-        switch(step) {
-            case 1:
-                if (!form.fullName || !form.email || !/^(\+614|04)\d{8}$/.test(form.mobile.replace(/\s+/g, ''))) {
-                    setError("Please provide a full name, valid email, and a valid Australian mobile number (e.g., 0412345678).");
-                    return false;
-                }
-                return true;
-            case 2:
-                if (!form.eventDate || !form.eventTime || !form.duration || Number(form.duration) <= 0 || !form.numberOfGuests || Number(form.numberOfGuests) <= 0 || !form.eventAddress || !form.eventType) {
-                    setError("Please fill in all event details with valid values.");
-                    return false;
-                }
-                return true;
-            case 3:
-                 if (form.selectedServices.length === 0) {
-                    setError("Please select at least one service.");
-                    return false;
-                }
-                return true;
-            case 4:
-                const idDocumentRequired = !isVerifiedBooker;
-                if ((idDocumentRequired && !form.idDocument) || !agreedTerms) {
-                    setError("Please upload your ID (if required) and agree to the Terms & Conditions.");
-                    return false;
-                }
-                return true;
-            default:
-                return true;
-        }
-    };
+    const { totalCost, depositAmount, breakdown } = useMemo(() => {
+        return calculateBookingCost(Number(form.duration), form.selectedServices, selectedPerformers.length, form.serviceDurations);
+    }, [form.duration, form.selectedServices, selectedPerformers.length, form.serviceDurations]);
 
     const handleNext = () => {
-        if (validateStep(currentStep)) {
-            setCurrentStep(prev => prev + 1);
-            window.scrollTo(0, 0);
+        if (currentStep === 1) {
+            if (!form.fullName || !form.mobile || !form.eventAddress) {
+                setError("Please provide your name, mobile, and location.");
+                return;
+            }
+            if (form.selectedServices.length === 0) {
+                setError("Please select at least one service.");
+                return;
+            }
         }
-    };
-
-    const handlePrev = () => {
-        if (isSubmitting) return;
-        setCurrentStep(prev => prev - 1);
+        setError(null);
+        setCurrentStep(prev => prev + 1);
         window.scrollTo(0, 0);
     };
 
+    const handleAsapShortcut = (isAsap: boolean) => {
+        if (isAsap) {
+            setForm({ ...form, eventDate: today, eventTime: 'ASAP' });
+        } else {
+            setForm({ ...form, eventDate: tomorrow, eventTime: '19:00' });
+        }
+    };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!validateStep(4)) return;
-
-        setIsSubmitting(true);
-        setError(null);
-        try {
-            const result = await onBookingRequest(form, performers);
-            if (result.success && result.bookingIds) {
-                setBookingIds(result.bookingIds);
-            } else {
-                throw new Error(result.message);
+    const toggleService = (id: string) => {
+        const isSelected = form.selectedServices.includes(id);
+        const service = allServices.find(s => s.id === id);
+        
+        if (isSelected) {
+            const updatedServices = form.selectedServices.filter(sid => sid !== id);
+            const updatedDurations = { ...form.serviceDurations };
+            delete updatedDurations[id];
+            setForm({ ...form, selectedServices: updatedServices, serviceDurations: updatedDurations });
+        } else {
+            const updatedServices = [...form.selectedServices, id];
+            const updatedDurations = { ...form.serviceDurations };
+            if (service?.rate_type === 'per_hour') {
+                updatedDurations[id] = service.min_duration_hours || 2;
             }
-        } catch(err: any) {
-            setError(err.message || 'An unexpected error occurred during submission.');
-            setCurrentStep(1);
-        } finally {
-            setIsSubmitting(false);
+            setForm({ ...form, selectedServices: updatedServices, serviceDurations: updatedDurations });
         }
     };
 
-    const handleConfirmDepositPaid = async () => {
-        if (!receiptFile) {
-            setError("Please upload your deposit receipt to continue.");
-            return;
-        }
+    const handleSubmit = async () => {
+        setIsSubmitting(true);
         setError(null);
-        if (!onUpdateBookingStatus || bookingIds.length === 0) return;
-        
-        setIsSubmitting(true);
         try {
-            await Promise.all(bookingIds.map(id => onUpdateBookingStatus(id, 'pending_deposit_confirmation')));
-            setStage('deposit_confirmation_pending');
-        } catch (err) {
-            setError("Failed to submit receipt. Please try again.");
+            const res = await onBookingRequest(form, selectedPerformers);
+            if (res.success) setStage('success');
+            else throw new Error(res.message);
+        } catch (err: any) {
+            setError(err.message || 'Verification failed. Please check details.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleSimulatedPaymentSuccess = async () => {
-        if (!onUpdateBookingStatus || bookingIds.length === 0) return;
-        
-        setIsSubmitting(true);
-        try {
-            await Promise.all(bookingIds.map(id => onUpdateBookingStatus(id, 'confirmed')));
-            const firstBookingId = bookingIds[0];
-            await addCommunication({ sender: 'System', recipient: 'admin', message: `💸 INSTANT PAYID: Payment verified for booking #${firstBookingId.slice(0,8)}. System AUTO-CONFIRMED the booking.`, booking_id: firstBookingId, type: 'admin_message' });
-            setStage('confirmed');
-        } catch(err) {
-            setError("Failed to process payment. Please try again.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const copyToClipboard = (text: string, key: string) => {
-        navigator.clipboard.writeText(text);
-        setCopiedStates(prev => ({ ...prev, [key]: true }));
-        setTimeout(() => {
-            setCopiedStates(prev => ({ ...prev, [key]: false }));
-        }, 2000);
-    };
-    
-    const renderStepContent = () => {
-        return (
-            <div key={currentStep} className="animate-fade-in">
-                {currentStep === 1 && (
-                    <div className="space-y-6 card-base !p-6 !bg-zinc-950/50">
-                         <div className="mb-6 bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 flex items-start gap-3">
-                             <Info className="text-blue-400 mt-1 flex-shrink-0" size={20} />
-                             <p className="text-sm text-blue-200">
-                                 <strong>Please note:</strong> All of the entertainers are freelance workers and availability is subject to change at any time. If the chosen performer is not available, we will suggest other performers for you to choose from.
-                             </p>
-                         </div>
-
-                         <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4">Your Details</h3>
-                         <InputField icon={<User />} type="text" name="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} required disabled={isSubmitting} />
-                         <InputField icon={<Mail />} type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} required disabled={isSubmitting} />
-                         <InputField icon={<Phone />} type="tel" name="mobile" placeholder="Mobile (e.g., 0412 345 678)" value={form.mobile} onChange={handleChange} required pattern="^(\+614|04)\d{8}$" title="Please enter a valid Australian mobile number, e.g., 0412345678" disabled={isSubmitting} />
-                    </div>
-                )}
-
-                {currentStep === 2 && (
-                    <div className="space-y-6 card-base !p-6 !bg-zinc-950/50">
-                         <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4">Event Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputField icon={<Calendar />} type="date" name="eventDate" value={form.eventDate} onChange={handleChange} required disabled={isSubmitting} />
-                            <InputField icon={<Clock />} type="time" name="eventTime" value={form.eventTime} onChange={handleChange} required disabled={isSubmitting} />
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <InputField icon={<Clock />} type="number" name="duration" placeholder="Duration (hours)" value={form.duration} onChange={handleChange} required min="1" disabled={isSubmitting} />
-                            <InputField icon={<UsersIcon />} type="number" name="numberOfGuests" placeholder="Number of Guests" value={form.numberOfGuests} onChange={handleChange} required min="1" disabled={isSubmitting} />
-                        </div>
-                        <InputField icon={<MapPin />} type="text" name="eventAddress" placeholder="Event Address" value={form.eventAddress} onChange={handleChange} required disabled={isSubmitting} />
-                        <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500"><PartyPopper /></div>
-                            <select name="eventType" value={form.eventType} onChange={handleChange} required className="input-base input-with-icon appearance-none" disabled={isSubmitting}>
-                                <option value="" disabled>Select Event Type</option>
-                                {eventTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 pointer-events-none" />
-                        </div>
-                        <div className="relative">
-                            <FileText className="absolute left-4 top-4 h-5 w-5 text-zinc-500" />
-                            <textarea
-                                name="client_message"
-                                placeholder="Message / Special Requests (optional)"
-                                value={form.client_message}
-                                onChange={handleChange}
-                                className="input-base input-with-icon h-24 resize-y"
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                    </div>
-                )}
-                
-                {currentStep === 3 && (
-                    <div className="space-y-4 card-base !p-6 !bg-zinc-950/50">
-                        <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-4 flex items-center gap-2">
-                            <ListChecks className="h-6 w-6" /> Select Services <span className="text-sm font-normal text-zinc-400 ml-2">(for all {performers.length} performers)</span>
-                        </h3>
-                        {Object.entries(servicesByCategory).map(([category, services]: [string, Service[]]) => (
-                            <div key={category}>
-                                <h4 className="font-semibold text-zinc-200 mt-4 mb-2">{category}</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {services.map(service => (
-                                    <label key={service.id} className="flex items-start p-3 bg-zinc-900 rounded-lg border border-zinc-700/50 hover:bg-zinc-800/70 cursor-pointer transition-colors">
-                                        <input
-                                        type="checkbox"
-                                        checked={form.selectedServices.includes(service.id)}
-                                        onChange={() => handleServiceChange(service.id)}
-                                        className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-600 focus:ring-orange-500"
-                                        disabled={isSubmitting}
-                                        />
-                                        <div className="ml-3 text-sm">
-                                            <span className="font-medium text-white">{service.name}</span>
-                                            <p className="text-zinc-400">{service.description}</p>
-                                            <p className="text-orange-400 font-semibold mt-1">
-                                                ${service.rate} {service.rate_type === 'per_hour' ? '/hr' : ' flat rate'}
-                                            </p>
-                                        </div>
-                                    </label>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                
-                {currentStep === 4 && (
-                    <div className="card-base !p-6 !bg-zinc-950/50">
-                        <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-3 mb-6">Verification & Agreement</h3>
-                        {isVerifiedBooker ? (
-                           <div className="p-4 text-center text-green-200 bg-green-900/30 rounded-lg border border-green-500 flex items-center justify-center gap-3">
-                              <CheckCircle className="h-5 w-5" />
-                              <span className="font-medium">Welcome back! As a verified client, you can skip the ID upload.</span>
-                           </div>
-                        ) : (
-                           <FileUploadField
-                              file={form.idDocument}
-                              setFile={(f) => setForm(prev => ({ ...prev, idDocument: f }))}
-                              id="idUpload"
-                              label="Upload Government-Issued ID"
-                              accept="image/png, image/jpeg, application/pdf"
-                           />
-                        )}
-                        <div className="mt-6">
-                            <label htmlFor="terms-check-booking" className="flex items-center p-4 bg-zinc-800/50 border border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-700/70 hover:border-zinc-600 transition-all duration-200">
-                                <div className="relative h-6 w-6 flex-shrink-0">
-                                <input id="terms-check-booking" type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} className="appearance-none h-6 w-6 rounded-md border-2 border-zinc-600 bg-zinc-900 checked:bg-orange-500 checked:border-orange-500 transition-all" disabled={isSubmitting} />
-                                {agreedTerms && <CheckCircle className="h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white pointer-events-none" />}
-                                </div>
-                                <span className="ml-4 text-zinc-200">
-                                I have read and agree to the{' '}
-                                <a href="#" onClick={(e) => { e.preventDefault(); onShowTermsOfService(); }} className="underline text-orange-400 hover:text-orange-300">Terms &amp; Conditions</a>
-                                {' and '}
-                                <a href="#" onClick={(e) => { e.preventDefault(); onShowPrivacyPolicy(); }} className="underline text-orange-400 hover:text-orange-300">Privacy Policy</a>.
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                )}
-
-            </div>
-        )
-    }
-
-    
-    if (stage === 'performer_acceptance_pending') {
-        return (
-            <StatusScreen icon={Send} title="Request Sent!" buttonText="Back to Gallery" onButtonClick={onBack} bgColor="bg-gradient-to-br from-purple-900/30 to-zinc-900">
-                <p>Your request has been sent to <strong>{performers.map(p => p.name).join(', ')}</strong>. We are awaiting their response and will notify you of any updates.</p>
-            </StatusScreen>
-        )
-    }
-
-    if (stage === 'vetting_pending') {
-        return (
-             <StatusScreen icon={ShieldCheck} title="Performer Accepted!" buttonText="Back to Gallery" onButtonClick={onBack} bgColor="bg-gradient-to-br from-yellow-900/30 to-zinc-900">
-                 <p><strong>{performers.map(p => p.name).join(', ')}</strong> has accepted your request! It's now with our admin team for final review and vetting.</p>
-             </StatusScreen>
-        )
-    }
-
-    if (stage === 'deposit_confirmation_pending') {
-        return (
-             <StatusScreen icon={Send} title="Receipt Submitted!" buttonText="Back to Gallery" onButtonClick={onBack} bgColor="bg-gradient-to-br from-blue-900/30 to-zinc-900">
-                <p>Your deposit receipt is being confirmed by our administration team. You will receive a final confirmation shortly.</p>
-             </StatusScreen>
-        )
-    }
-    
-    if (stage === 'rejected') {
-        return (
-            <StatusScreen icon={ShieldX} title="Booking Rejected" buttonText="Return to Gallery" onButtonClick={onBookingSubmitted} bgColor="bg-gradient-to-br from-red-900/30 to-zinc-900">
-                <p>Unfortunately, your booking application for <strong>{performers.map(p => p.name).join(', ')}</strong> has been rejected.</p>
-            </StatusScreen>
-        )
-    }
-
-    if (stage === 'confirmed') {
-        const confirmedServices = allServices.filter(s => form.selectedServices.includes(s.id));
-        const finalBalance = totalCost - depositAmount;
+    if (stage === 'success') {
+        const calendarLinks = generateCalendarLinks({
+            title: `Flavor Booking: ${selectedPerformers.map(p => p.name).join(' & ')}`,
+            description: `Confirmed via Flavor Entertainers.\nServices: ${breakdown.map(b => b.name).join(', ')}`,
+            location: form.eventAddress,
+            date: form.eventDate,
+            time: form.eventTime === 'ASAP' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : form.eventTime,
+            durationHours: Number(form.duration)
+        });
 
         return (
-            <div className="animate-fade-in max-w-4xl mx-auto">
-                <div className="card-base !p-8 sm:!p-10 !bg-gradient-to-br from-green-900/30 via-zinc-900 to-zinc-900 border-green-500/50">
-                    <div className="text-center">
-                        <CheckCircle className="mx-auto h-20 w-20 text-green-400 mb-6" />
-                        <h2 className="text-4xl font-bold text-white mb-4">Booking Confirmed!</h2>
-                        <p className="text-zinc-300 max-w-2xl mx-auto mb-10">
-                            Your event is locked in. We've sent a confirmation to <strong>{form.email}</strong>.
-                            Here is a summary of your booking:
-                        </p>
+            <div className="animate-fade-in max-w-2xl mx-auto py-12 px-4">
+                <div className="card-base !p-12 !bg-zinc-950/40 border-emerald-500/20 text-center shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
+                    <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-10 border border-emerald-500/20 text-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+                        <CheckCircle size={48} strokeWidth={2.5} />
                     </div>
+                    <h2 className="text-4xl font-black text-white uppercase tracking-tight mb-4">Request Transmitted</h2>
+                    <p className="text-zinc-500 font-bold text-xs uppercase tracking-[0.2em] leading-relaxed max-w-sm mx-auto mb-12">
+                        Professionals notified. An SMS arrival window will be sent to your device shortly.
+                    </p>
 
-                    <div className="grid md:grid-cols-2 gap-x-8 gap-y-10 mb-10">
-                        <div className="space-y-5">
-                            <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 flex items-center gap-2"><Briefcase size={20}/> Event Details</h3>
-                            <DetailItem icon={<User />} label="Performer(s)" value={performers.map(p => p.name).join(', ')} />
-                            <DetailItem icon={<Calendar />} label="Date & Time" value={`${new Date(form.eventDate).toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${form.eventTime}`} />
-                            <DetailItem icon={<MapPin />} label="Address" value={form.eventAddress} />
-                            <DetailItem icon={<PartyPopper />} label="Event Type" value={form.eventType} />
-                            <DetailItem icon={<UsersIcon />} label="Guests" value={form.numberOfGuests} />
-                            <DetailItem icon={<Clock />} label="Duration" value={`${form.duration} hours`} />
-                        </div>
-
-                        <div className="space-y-5">
-                             <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 flex items-center gap-2"><DollarSign size={20}/> Financial Summary</h3>
-                             <DetailItem icon={<DollarSign />} label="Total Cost" value={`$${totalCost.toFixed(2)}`} />
-                             <DetailItem icon={<CreditCard />} label="Deposit Paid" value={`$${depositAmount.toFixed(2)}`} />
-                             <DetailItem icon={<Wallet />} label="Balance Due on Arrival" value={<span className="text-orange-400 text-lg">${finalBalance.toFixed(2)}</span>} />
-
-                             <h3 className="text-xl font-semibold text-orange-400 border-b border-zinc-700 pb-2 pt-4 flex items-center gap-2"><ListChecks size={20}/> Services Requested</h3>
-                             <ul className="space-y-2 pl-5">
-                                {confirmedServices.map(service => (
-                                    <li key={service.id} className="text-white list-disc list-outside marker:text-orange-500">{service.name}</li>
-                                ))}
-                            </ul>
+                    <div className="space-y-4 mb-12">
+                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-4">Add to your schedule</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button 
+                                onClick={() => window.open(calendarLinks.googleUrl, '_blank')}
+                                className="py-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                Google Calendar
+                            </button>
+                            <button 
+                                onClick={() => window.open(calendarLinks.outlookUrl, '_blank')}
+                                className="py-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                Outlook
+                            </button>
                         </div>
                     </div>
 
-                    <div className="text-center bg-zinc-950/50 p-6 rounded-lg border border-zinc-800">
-                         <h3 className="text-xl font-semibold text-white mb-2">What's Next?</h3>
-                         <p className="text-zinc-400">
-                            Your performer, <strong>{performers.map(p => p.name).join(', ')}</strong>, has received all the details. The final balance of <strong>${finalBalance.toFixed(2)}</strong> is due in cash upon their arrival. We'll see you on the day!
-                         </p>
-                    </div>
-
-                    <div className="text-center mt-10">
-                        <button onClick={onBookingSubmitted} className="btn-primary px-8 py-3 text-lg">
-                            Return to Gallery
-                        </button>
-                    </div>
+                    <button onClick={onBookingSubmitted} className="btn-primary w-full py-6 font-black text-xs tracking-[0.3em] uppercase shadow-2xl shadow-orange-500/20">
+                        RETURN TO HUB
+                    </button>
                 </div>
             </div>
         );
     }
 
-    if (stage === 'deposit_pending') {
-        const payLink = generatePayIDLink(depositAmount, `DEPOSIT-${bookingIds[0]?.slice(0, 8) || 'FLAVOR'}`);
-
-        return (
-            <>
-            {isPayIdModalOpen && (
-                <PayIDSimulationModal 
-                    amount={depositAmount}
-                    onPaymentSuccess={handleSimulatedPaymentSuccess}
-                    onClose={() => setIsPayIdModalOpen(false)}
-                />
-            )}
-            <div className="animate-fade-in max-w-3xl mx-auto relative">
-                 {/* Loading Overlay for Deposit Stage */}
-                 {isSubmitting && (
-                    <div className="absolute inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center animate-fade-in">
-                        <LoaderCircle className="h-12 w-12 text-orange-500 animate-spin mb-4" />
-                        <p className="text-white font-bold text-lg">Finalizing your booking...</p>
-                    </div>
-                )}
-
-                <div className="card-base !p-0 !bg-transparent !border-0">
-                    <div className="p-4 mb-6 text-green-200 bg-green-900/30 rounded-lg border border-green-500 text-center">
-                        <span className="font-medium">Application Approved!</span> Your initial application has been vetted and approved. Please pay the deposit to confirm the booking.
-                    </div>
-                    <div className="card-base !p-8 sm:!p-10 !bg-zinc-900/70">
-                        <ErrorDisplay message={error} />
-                        <h2 className="text-3xl font-bold text-white mb-2">Deposit Required</h2>
-                        <p className="text-zinc-300 mb-6">To confirm your booking with <strong>{performers.map(p => p.name).join(', ')}</strong>, please pay the {DEPOSIT_PERCENTAGE * 100}% deposit.</p>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                            <button 
-                                onClick={() => window.open(payLink, '_self')}
-                                className="w-full py-4 text-sm flex items-center justify-center gap-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-all duration-300 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transform hover:-translate-y-0.5"
-                                disabled={isSubmitting}
-                            >
-                               <ExternalLink className="h-5 w-5" />
-                               Launch Banking App
-                            </button>
-                            <button 
-                                onClick={() => setIsPayIdModalOpen(true)}
-                                className="w-full py-4 text-sm flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transform hover:-translate-y-0.5"
-                                disabled={isSubmitting}
-                            >
-                               🚀 NPP Instant Pay
-                            </button>
-                        </div>
-
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-zinc-700" /></div>
-                            <div className="relative flex justify-center"><span className="bg-zinc-900 px-2 text-zinc-500 text-sm">Or Copy Details Manually</span></div>
-                        </div>
-
-                        <div className="space-y-4 bg-zinc-950 p-6 rounded-lg mb-8 border border-zinc-700">
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold text-zinc-300">PayID Name:</span>
-                                <span className="font-mono">{PAY_ID_NAME}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold text-zinc-300">PayID Email:</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono">{PAY_ID_EMAIL}</span>
-                                    <button onClick={() => copyToClipboard(PAY_ID_EMAIL, 'email')} className="text-orange-400 hover:text-orange-300 transition-colors">
-                                        {copiedStates['email'] ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4"/>}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center text-orange-400 font-bold text-lg pt-4 border-t border-zinc-800">
-                                <span>Deposit Amount ({DEPOSIT_PERCENTAGE * 100}%):</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono">${depositAmount.toFixed(2)}</span>
-                                    <button onClick={() => copyToClipboard(depositAmount.toFixed(2), 'amount')} className="text-orange-400 hover:text-orange-300 transition-colors">
-                                        {copiedStates['amount'] ? <CheckCircle className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4"/>}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 mb-6">
-                            <FileUploadField file={receiptFile} setFile={setReceiptFile} id="receiptUpload" label="Step 2: Upload Deposit Receipt" accept="image/png, image/jpeg, application/pdf" />
-                        </div>
-
-                        <button 
-                            onClick={handleConfirmDepositPaid}
-                            disabled={!receiptFile || isSubmitting}
-                            className="btn-primary w-full py-3 text-base flex items-center justify-center gap-2"
-                        >
-                           {isSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
-                           Confirm Manual Submission
-                        </button>
-                    </div>
-                </div>
-            </div>
-            </>
-        )
-    }
-
     return (
-        <div className="animate-fade-in relative">
-            {/* Global Form Loading Overlay */}
-            {isSubmitting && (
-                <div className="absolute inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center animate-fade-in -top-16 -bottom-8">
-                    <div className="bg-zinc-900 p-8 rounded-2xl border border-zinc-700 shadow-2xl flex flex-col items-center">
-                        <LoaderCircle className="h-16 w-16 text-orange-500 animate-spin mb-6" />
-                        <h3 className="text-white font-bold text-xl mb-2">Securing your request...</h3>
-                        <p className="text-zinc-400 text-center max-w-xs">We're notifying the entertainers and checking availability. Please don't refresh.</p>
-                    </div>
-                </div>
-            )}
-
-            <button onClick={onBack} disabled={isSubmitting} className={`mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <ArrowLeft className="h-5 w-5" />
-                Back
+        <div className="animate-fade-in max-w-5xl mx-auto py-6 pb-32 px-4">
+            <button onClick={onBack} className="mb-12 group text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 hover:text-white flex items-center gap-3 transition-colors">
+                <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
+                Cancel Booking
             </button>
-            <form onSubmit={handleSubmit} className="card-base !p-0 sm:!p-0 !bg-transparent !border-0 max-w-4xl mx-auto">
-                 <div className="card-base !p-8 sm:!p-10 !bg-zinc-900/70 space-y-8">
-                    <div>
-                        <h2 className="text-3xl font-bold text-white">Booking Application For:</h2>
-                        <p className="text-orange-400 text-xl font-semibold">{performers.map(p => p.name).join(', ')}</p>
-                    </div>
 
-                    <ProgressIndicator currentStep={currentStep} />
-                    
-                    <ErrorDisplay message={error} />
-                    
-                    {renderStepContent()}
-                     
-                    {(currentStep === 3 || currentStep === 4) && (
-                        <div className="card-base !p-6 !bg-zinc-950/50 mt-8">
-                            <h3 className="text-xl font-semibold text-orange-400 flex items-center gap-2"><DollarSign /> Cost Estimate</h3>
-                            <div className="mt-4 space-y-2 text-zinc-300">
-                                <div className="flex justify-between items-center">
-                                    <span>Total Booking Cost:</span>
-                                    <span className="font-bold text-2xl text-white">${totalCost.toFixed(2)}</span>
+            <div className="card-base !p-8 md:!p-20 !bg-zinc-950/60 border-white/5 backdrop-blur-3xl shadow-[0_50px_100px_-20px_rgba(0,0,0,1)]">
+                <ProgressIndicator currentStep={currentStep} />
+                
+                {error && <div className="mb-10 p-6 bg-red-950/30 border border-red-500/40 rounded-3xl text-red-400 text-[10px] font-black uppercase tracking-widest text-center animate-pulse">{error}</div>}
+
+                <div className="min-h-[450px]">
+                    {currentStep === 1 && (
+                        <div className="space-y-12 animate-fade-in">
+                            {/* Timing Shortcuts */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <button 
+                                    onClick={() => handleAsapShortcut(true)}
+                                    className={`p-6 rounded-3xl border transition-all text-left flex flex-col gap-2 ${form.eventTime === 'ASAP' ? 'bg-orange-500/10 border-orange-500 shadow-lg shadow-orange-500/5' : 'bg-zinc-900/40 border-white/5 hover:border-white/20'}`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Zap size={16} className={form.eventTime === 'ASAP' ? 'text-orange-500' : 'text-zinc-500'} />
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${form.eventTime === 'ASAP' ? 'text-orange-400' : 'text-zinc-400'}`}>Dispatch ASAP</span>
+                                    </div>
+                                    <h4 className="text-xl font-black text-white uppercase tracking-tight">Today</h4>
+                                </button>
+                                <button 
+                                    onClick={() => handleAsapShortcut(false)}
+                                    className={`p-6 rounded-3xl border transition-all text-left flex flex-col gap-2 ${form.eventTime !== 'ASAP' ? 'bg-orange-500/10 border-orange-500 shadow-lg shadow-orange-500/5' : 'bg-zinc-900/40 border-white/5 hover:border-white/20'}`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Calendar size={16} className={form.eventTime !== 'ASAP' ? 'text-orange-500' : 'text-zinc-500'} />
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${form.eventTime !== 'ASAP' ? 'text-orange-400' : 'text-zinc-400'}`}>Schedule</span>
+                                    </div>
+                                    <h4 className="text-xl font-black text-white uppercase tracking-tight">Tomorrow</h4>
+                                </button>
+                            </div>
+
+                            {/* Service Selection */}
+                            <div className="space-y-4">
+                                <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] flex items-center gap-3">
+                                    <PartyPopper size={16} /> Select Preferred Service
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {allServices.filter(s => selectedPerformers[0]?.service_ids.includes(s.id)).map(s => {
+                                        const isSelected = form.selectedServices.includes(s.id);
+                                        return (
+                                            <button 
+                                                key={s.id}
+                                                onClick={() => toggleService(s.id)}
+                                                className={`p-5 rounded-2xl border transition-all flex items-center justify-between text-left ${isSelected ? 'bg-orange-500/20 border-orange-500/40' : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-900'}`}
+                                            >
+                                                <div>
+                                                    <p className="text-[11px] font-black text-white uppercase tracking-widest leading-none mb-1">{s.name}</p>
+                                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">${s.rate}{s.rate_type === 'per_hour' ? '/hr' : ' flat'}</p>
+                                                </div>
+                                                <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${isSelected ? 'bg-orange-500 border-orange-500' : 'border-zinc-800 bg-zinc-950'}`}>
+                                                    {isSelected && <Check size={12} className="text-white" strokeWidth={4}/>}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span>Deposit Due ({DEPOSIT_PERCENTAGE * 100}%):</span>
-                                    <span className="font-semibold text-xl text-orange-400">${depositAmount.toFixed(2)}</span>
+                            </div>
+
+                            {/* Contact Form */}
+                            <div className="space-y-5">
+                                <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] flex items-center gap-3 pt-4">
+                                    <User size={16} /> Contact & Location
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <InputField icon={<User size={18}/>} placeholder="Full Legal Name" value={form.fullName} onChange={(e) => setForm({...form, fullName: e.target.value})} />
+                                    <InputField icon={<Phone size={18}/>} placeholder="Australian Mobile (SMS updates)" value={form.mobile} onChange={(e) => setForm({...form, mobile: e.target.value})} />
+                                </div>
+                                <InputField icon={<MapPin size={18}/>} placeholder="Full Event Address / Venue Location" value={form.eventAddress} onChange={(e) => setForm({...form, eventAddress: e.target.value})} />
+                                <div className="relative group">
+                                    <MessageSquare size={18} className="absolute left-4 top-4 text-zinc-500" />
+                                    <textarea 
+                                        placeholder="Special notes or arrival instructions (e.g. entry code, room number)" 
+                                        className="input-base !pl-14 !h-32 resize-none !bg-zinc-950/80 !text-[11px] font-medium tracking-wide leading-relaxed"
+                                        value={form.client_message}
+                                        onChange={(e) => setForm({...form, client_message: e.target.value})}
+                                    />
                                 </div>
                             </div>
                         </div>
                     )}
 
+                    {currentStep === 2 && (
+                        <div className="space-y-10 animate-fade-in max-w-2xl mx-auto">
+                            <div className="text-center mb-8">
+                                <h3 className="text-xs font-black text-orange-500 uppercase tracking-[0.4em] mb-4">Confirm Your Booking</h3>
+                                <div className="flex justify-center -space-x-4 mb-6">
+                                    {selectedPerformers.map(p => (
+                                        <div key={p.id} className="w-16 h-16 rounded-[1.5rem] border-4 border-zinc-950 overflow-hidden shadow-2xl">
+                                            <img src={p.photo_url} className="w-full h-full object-cover" alt={p.name} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
-                    <div className="mt-8 flex items-center justify-between">
+                            <div className="bg-zinc-950 rounded-[3rem] border border-white/10 overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)]">
+                                <div className="p-10 border-b border-white/5 bg-zinc-900/40">
+                                    <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] mb-8">Digital Invoice</h3>
+                                    <div className="space-y-6">
+                                        {breakdown.map((item, i) => (
+                                            <div key={i} className="flex justify-between items-start group">
+                                                <div className="space-y-1">
+                                                    <span className="text-xs font-black text-white uppercase tracking-widest block">{item.name}</span>
+                                                    <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">{item.details}</span>
+                                                </div>
+                                                <span className="text-xs font-black text-white tracking-widest">${item.cost.toFixed(2)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="p-10 space-y-8 bg-zinc-950/80">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-2">Total Value</p>
+                                            <p className="text-5xl font-black text-white tracking-tighter">${totalCost.toFixed(2)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-2">Dispatch Deposit</p>
+                                            <p className="text-3xl font-black text-orange-500 tracking-tighter">${depositAmount.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-orange-500/5 p-6 rounded-3xl border border-orange-500/10 flex items-start gap-4">
+                                        <Info size={20} className="text-orange-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-relaxed">
+                                                This 15% deposit secures your talent. The remaining <span className="text-white">${(totalCost - depositAmount).toFixed(2)}</span> is payable directly to the professional on arrival.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 bg-zinc-900/30 p-6 rounded-3xl border border-white/5">
+                                <ShieldCheck size={24} className="text-emerald-500 shrink-0" />
+                                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest leading-relaxed">
+                                    Your data is encrypted. We vet all bookings for performer safety and client discretion.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 3 && (
+                        /* Payment Simulation Step (The user requested Step 3 to be Success, but we need to submit first) */
+                        <div className="flex flex-col items-center justify-center text-center py-20 animate-fade-in">
+                            <LoaderCircle className="w-16 h-16 animate-spin text-orange-500 mb-8" strokeWidth={3} />
+                            <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Securing Roster</h3>
+                            <p className="text-zinc-500 font-bold text-xs uppercase tracking-[0.3em]">Connecting to encrypted gateway...</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-20 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    {currentStep > 1 && (
                         <button 
-                            type="button" 
-                            onClick={handlePrev} 
-                            disabled={isSubmitting}
-                            className={`bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 ${currentStep === 1 ? 'opacity-0 pointer-events-none' : (isSubmitting ? 'opacity-50 cursor-not-allowed' : 'opacity-100')}`}
+                            onClick={() => setCurrentStep(prev => prev - 1)} 
+                            className="px-12 py-5 text-zinc-500 hover:text-white text-[11px] font-black uppercase tracking-widest transition-colors active:scale-95 sm:order-1"
                         >
-                            Back
+                            Review Details
                         </button>
-                                  <button
-                                                  type="button"
-                                                  onClick={() => setIsIDUploadOpen(true)}
-                                                  className="btn-primary text-lg px-8 py-3 rounded-lg transition-all duration-300"
-                                                >
-                                                📄 Upload Client ID
-                                  </button>button></button>
-                       {currentStep < 4 ? (
-                          <button type="button" onClick={handleNext} className="btn-primary text-lg px-8 py-3" disabled={isSubmitting}>
-                              Next
-                          </button>
-                       ) : (
-                          <button type="submit" disabled={isSubmitting} className="btn-primary text-lg py-3 px-6 flex items-center justify-center gap-3">
-                              {isSubmitting ? <LoaderCircle className="h-5 w-5 animate-spin"/> : <Send className="h-5 w-5" />}
-                              {isSubmitting ? 'Submitting...' : 'Submit Booking Application'}
-                          </button>
-                       )}
-                    </div>
-
-                 </div>
-            </form>
+                    )}
+                    
+                    {currentStep < 2 ? (
+                        <button 
+                            onClick={handleNext} 
+                            className="btn-primary w-full sm:w-80 py-6 font-black text-xs tracking-[0.3em] shadow-2xl shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-3 sm:order-2"
+                        >
+                            REVIEW BOOKING <ArrowRight size={18} />
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={handleSubmit} 
+                            disabled={isSubmitting || selectedPerformers.length === 0} 
+                            className="btn-primary w-full sm:w-80 py-6 font-black text-xs tracking-[0.3em] flex items-center justify-center gap-4 shadow-2xl shadow-orange-500/30 active:scale-95 disabled:opacity-20 sm:order-2"
+                        >
+                            {isSubmitting ? <LoaderCircle className="animate-spin" size={20} strokeWidth={3} /> : <ShieldCheck size={20} />}
+                            {isSubmitting ? 'VERIFYING...' : 'CONFIRM & SECURE'}
+                        </button>
+                    )}
+                </div>
+                
+                <div className="mt-12 text-center">
+                    <p className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.5em]">Flavor Premium Entertainment &bull; Western Australia</p>
+                </div>
+            </div>
         </div>
-            <IDUploadModal
-              isOpen={isIDUploadOpen}
-          onClose={() => setIsIDUploadOpen(false)}
-          bookingId={form.email}
-        clientName={form.fullName}
-        onSuccess={(filePath) => {
-                    console.log('ID uploaded successfully:', filePath);
-                    // You can add additional logic here to save the path to the database
-        }}
-        onError={(error) => {
-                    console.error('ID upload failed:', error);
-        }}
-      />
     );
 };
 

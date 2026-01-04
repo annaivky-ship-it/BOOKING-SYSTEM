@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-export type PerformerStatus = 'available' | 'busy' | 'offline' | 'pending';
+export type PerformerStatus = 'available' | 'unavailable' | 'pending' | 'rejected';
 export type Role = 'user' | 'performer' | 'admin';
 
 export type BookingStatus = 
@@ -34,6 +34,7 @@ export interface Performer {
   gallery_urls: string[]; // Additional photos
   bio: string;
   service_ids: string[];
+  service_areas: string[]; // New field for WA regions
   status: PerformerStatus;
   created_at: string;
   phone: string; // Added for WhatsApp notifications
@@ -51,17 +52,18 @@ export interface Booking {
     event_type: string;
     status: BookingStatus;
     id_document_path: string | null;
+    confirmation_document_path: string | null;
     deposit_receipt_path: string | null;
     created_at: string;
     duration_hours: number;
     number_of_guests: number;
     services_requested: string[]; // These will be service IDs
+    service_durations?: Record<string, number>; // Maps service ID to duration in hours
     verified_by_admin_name: string | null;
     verified_at: string | null;
     client_message?: string | null;
     performer_reassigned_from_id?: number | null;
     performer_eta_minutes?: number | null;
-    // This is from the join
     performer?: {
         id: number;
         name: string;

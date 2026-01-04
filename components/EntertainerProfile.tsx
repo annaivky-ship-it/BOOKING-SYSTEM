@@ -1,32 +1,47 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { Performer, Service, Booking, PerformerStatus } from '../types';
 import { allServices } from '../data/mockData';
-import { ArrowLeft, Briefcase, Sparkles, Clock, AlertCircle, ChevronDown, Plus, Check, CalendarCheck, CalendarPlus, RefreshCcw, Camera, X, Shuffle, History, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Briefcase, Sparkles, Clock, AlertCircle, ChevronDown, Plus, Check, CalendarPlus, RefreshCcw, Camera, X, Shuffle, History, Zap, MapPin, Calendar, Star, Layers, CalendarCheck, Info, Timer, LoaderCircle } from 'lucide-react';
 
 interface PerformerProfileProps {
   performer: Performer;
   onBack: () => void;
-  onBook: (performer: Performer) => void;
+  onBook: (performer: Performer, preferAsap?: boolean) => void;
   isSelected: boolean;
   onToggleSelection: (performer: Performer) => void;
   bookings: Booking[];
   canEditStatus?: boolean;
   onStatusChange?: (status: PerformerStatus) => void;
+  onUpdateBooking?: (id: string, updates: Partial<Booking>) => Promise<void>;
 }
 
 const statusConfig: Record<PerformerStatus, { label: string; classes: string; dot: string }> = {
-    available: { label: 'Available', classes: 'bg-green-950/80 border-green-500 text-green-400', dot: 'bg-green-500' },
-    busy: { label: 'Busy', classes: 'bg-yellow-950/80 border-yellow-500 text-yellow-400', dot: 'bg-yellow-500' },
-    offline: { label: 'Offline', classes: 'bg-zinc-950/80 border-zinc-500 text-zinc-400', dot: 'bg-zinc-500' },
-    pending: { label: 'Pending Review', classes: 'bg-purple-950/80 border-purple-500 text-purple-400', dot: 'bg-purple-500' },
+    available: { label: 'Online Now', classes: 'bg-green-500/20 border-green-500/40 text-green-400', dot: 'bg-green-400' },
+    unavailable: { label: 'Unavailable', classes: 'bg-zinc-800/80 border-zinc-700 text-zinc-400', dot: 'bg-zinc-500' },
+    pending: { label: 'Check Pending', classes: 'bg-purple-500/20 border-purple-500/40 text-purple-400', dot: 'bg-purple-400' },
+    rejected: { label: 'Rejected', classes: 'bg-red-500/20 border-red-500/40 text-red-400', dot: 'bg-red-400' },
 };
 
-const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook, isSelected, onToggleSelection, bookings, canEditStatus, onStatusChange }) => {
+const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, onBook, isSelected, onToggleSelection, bookings, canEditStatus, onStatusChange, onUpdateBooking }) => {
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [gallerySortMode, setGallerySortMode] = useState<'default' | 'random'>('default');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const [editingEtaId, setEditingEtaId] = useState<string | null>(null);
+  const [etaValue, setEtaValue] = useState<string>('');
+  const [isUpdatingEta, setIsUpdatingEta] = useState(false);
+
+  const isAvailable = performer.status === 'available';
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowStickyBar(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const performerServices = useMemo(() => {
     return allServices.filter(service => performer.service_ids.includes(service.id));
@@ -36,19 +51,8 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
     return performerServices.reduce((acc, service) => {
       (acc[service.category] = acc[service.category] || []).push(service);
       return acc;
-    }, {} as Record<string, typeof performerServices>);
+    }, {} as Record<string, Service[]>);
   }, [performerServices]);
-
-  const upcomingBookings = useMemo(() => {
-    const now = new Date();
-    return bookings
-        .filter(b => {
-            const eventDate = new Date(`${b.event_date}T${b.event_time}`);
-            // Show confirmed bookings in the future
-            return eventDate > now && b.status === 'confirmed'; 
-        })
-        .sort((a, b) => new Date(`${a.event_date}T${a.event_time}`).getTime() - new Date(`${b.event_date}T${b.event_time}`).getTime());
-  }, [bookings]);
 
   const toggleExpandService = (id: string) => {
     setExpandedServiceId(prev => prev === id ? null : id);
@@ -62,14 +66,25 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
   };
 
   const handleStatusToggle = () => {
-      if (!canEditStatus || !onStatusChange) return;
+      if (!canEditStatus || !onStatusChange || performer.status === 'rejected') return;
       const nextStatus: Record<PerformerStatus, PerformerStatus> = {
-          available: 'busy',
-          busy: 'offline',
-          offline: 'available',
-          pending: 'pending' // Cannot toggle pending via profile page
+          available: 'unavailable',
+          unavailable: 'available',
+          pending: 'pending',
+          rejected: 'rejected'
       };
       onStatusChange(nextStatus[performer.status]);
+  };
+
+  const handleUpdateEta = async (bookingId: string) => {
+    if (!onUpdateBooking) return;
+    setIsUpdatingEta(true);
+    try {
+      await onUpdateBooking(bookingId, { performer_eta_minutes: parseInt(etaValue) || null });
+      setEditingEtaId(null);
+    } finally {
+      setIsUpdatingEta(false);
+    }
   };
 
   const statusStyle = statusConfig[performer.status];
@@ -86,205 +101,373 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
     return urls;
   }, [performer.gallery_urls, gallerySortMode]);
 
+  const confirmedUpcomingBookings = useMemo(() => {
+    return bookings.filter(b => b.status === 'confirmed').sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
+  }, [bookings]);
+
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in max-w-7xl mx-auto pb-24 md:pb-0">
         {selectedImage && (
-            <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setSelectedImage(null)}>
-                <div className="relative max-w-5xl w-full max-h-screen">
-                    <button className="absolute -top-12 right-0 text-zinc-400 hover:text-white transition-colors" onClick={() => setSelectedImage(null)}>
+            <div className="fixed inset-0 bg-black/98 z-[100] flex items-center justify-center p-4 backdrop-blur-2xl animate-fade-in" onClick={() => setSelectedImage(null)}>
+                <div className="relative max-w-5xl w-full h-full flex items-center justify-center">
+                    <button className="absolute top-8 right-8 text-white/50 hover:text-white transition-all p-3 bg-white/5 hover:bg-white/10 rounded-full z-10" onClick={() => setSelectedImage(null)}>
                         <X size={32} />
                     </button>
-                    <img src={selectedImage} alt="Full view" className="w-full h-auto max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+                    <img src={selectedImage} alt="View" className="max-w-full max-h-full object-contain rounded-lg shadow-[0_0_100px_rgba(249,115,22,0.1)] border border-white/10" />
                 </div>
             </div>
         )}
 
+      <div className={`fixed bottom-0 left-0 right-0 z-50 p-4 md:hidden transition-transform duration-500 transform ${showStickyBar ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className="glass !bg-zinc-900/90 !backdrop-blur-2xl border-white/10 rounded-[2rem] p-3 flex items-center justify-between shadow-[0_-20px_50px_-10px_rgba(0,0,0,0.5)]">
+           <div className="flex items-center gap-3 ml-2">
+              <div className="relative">
+                <img src={performer.photo_url} className="w-12 h-12 rounded-full object-cover border border-white/10" alt="" />
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-zinc-900 ${statusStyle.dot}`}></div>
+              </div>
+              <div>
+                <p className="text-white font-black text-[10px] uppercase tracking-wider">{performer.name}</p>
+                <p className="text-zinc-500 text-[8px] font-bold uppercase tracking-[0.2em]">{isAvailable ? 'Ready Now' : 'Book Future'}</p>
+              </div>
+           </div>
+           <button 
+            onClick={() => onBook(performer, isAvailable)}
+            className="btn-primary !py-3.5 !px-6 !rounded-2xl !text-[10px] font-black flex items-center gap-2 shadow-lg shadow-orange-500/20"
+           >
+             {isAvailable ? <Zap size={14} className="fill-white" /> : <CalendarCheck size={14} />}
+             BOOK NOW
+           </button>
+        </div>
+      </div>
+
       <button
         onClick={onBack}
-        className="mb-8 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2"
+        className="mb-8 group flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-white transition-colors"
       >
-        <ArrowLeft className="h-5 w-5" />
-        Back to Gallery
+        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+        Return to Gallery
       </button>
 
-      <div className="grid md:grid-cols-5 gap-8 lg:gap-12">
-        <div className="md:col-span-2">
-          <div className="sticky top-28 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
+        <div className="lg:col-span-4 space-y-8">
+          <div className="lg:sticky lg:top-28 space-y-8">
             <div className="relative group">
-                <img
-                  src={performer.photo_url}
-                  alt={performer.name}
-                  className="rounded-2xl shadow-2xl shadow-black/50 w-full h-auto object-cover aspect-[3/4] border-4 border-zinc-800 relative z-10"
-                />
-                
-                <button
-                    onClick={handleStatusToggle}
-                    disabled={!canEditStatus || performer.status === 'pending'}
-                    className={`absolute top-4 right-4 z-20 px-4 py-2 rounded-full border backdrop-blur-md flex items-center gap-2 shadow-xl transition-all ${statusStyle.classes} ${canEditStatus && performer.status !== 'pending' ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}`}
-                    title={canEditStatus ? "Click to change status" : `Current status: ${statusStyle.label}`}
-                >
-                    <div className={`w-2.5 h-2.5 rounded-full ${statusStyle.dot} animate-pulse shadow-[0_0_8px_currentColor]`}></div>
-                    <span className="font-bold text-sm uppercase tracking-wide">{statusStyle.label}</span>
-                    {canEditStatus && performer.status !== 'pending' && <RefreshCcw size={14} className="ml-1 opacity-70" />}
-                </button>
-
-                <div className="absolute -inset-2 rounded-2xl bg-orange-500/30 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </div>
-            
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <CalendarCheck className="text-orange-500" size={20} />
-                    Future Bookings
-                </h3>
-                <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
-                    {performer.name} works as a freelancer across multiple agencies. As such, online availability may not be real-time.
-                    <br/><br/>
-                    Please submit a booking request for your desired date. We will confirm availability with the performer immediately.
-                </p>
-                <button 
-                    onClick={() => onBook(performer)}
-                    className="w-full btn-primary py-3 flex items-center justify-center gap-2 font-bold"
-                >
-                    <CalendarPlus size={18} />
-                    Request Date
-                </button>
-            </div>
-
-            {upcomingBookings.length > 0 && (
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                        <Clock className="text-orange-500" size={20} />
-                        Next Up (Flavor Only)
-                    </h3>
-                    <div className="space-y-3">
-                        {upcomingBookings.slice(0, 3).map(booking => (
-                            <div key={booking.id} className="p-3 bg-zinc-950 rounded-lg border border-zinc-800/50 text-sm">
-                                <div className="font-semibold text-zinc-200">{booking.event_type}</div>
-                                <div className="text-zinc-400 mt-1 flex justify-between">
-                                    <span>{new Date(booking.event_date).toLocaleDateString()}</span>
-                                    <span>{booking.client_name}</span>
-                                </div>
+                <div className="relative z-10 overflow-hidden rounded-[2.5rem] border border-white/10 shadow-2xl aspect-[3/4]">
+                    <img
+                      src={performer.photo_url}
+                      alt={performer.name}
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                    <div className="absolute bottom-6 left-6 right-6">
+                        <button
+                            onClick={handleStatusToggle}
+                            disabled={!canEditStatus || performer.status === 'pending' || performer.status === 'rejected'}
+                            className={`w-full px-4 py-3 rounded-2xl border backdrop-blur-xl flex items-center justify-between shadow-2xl transition-all ${statusStyle.classes} ${canEditStatus && performer.status !== 'pending' && performer.status !== 'rejected' ? 'hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-2.5 h-2.5 rounded-full ${statusStyle.dot} ${isAvailable ? 'animate-pulse' : ''} shadow-[0_0_12px_currentColor]`}></div>
+                                <span className="font-black text-[11px] uppercase tracking-[0.15em]">{statusStyle.label}</span>
                             </div>
-                        ))}
+                            {canEditStatus && performer.status !== 'pending' && performer.status !== 'rejected' && <RefreshCcw size={14} className="opacity-70" />}
+                        </button>
+                    </div>
+                </div>
+                <div className="absolute -inset-4 rounded-[3.5rem] bg-orange-500/5 blur-3xl -z-0"></div>
+            </div>
+
+            <div className="card-base !p-8 bg-zinc-900/40 border-white/5 space-y-6">
+                <div className="space-y-1">
+                    <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Direct Booking</p>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Reserve {performer.name}</h3>
+                </div>
+                <div className="space-y-3">
+                    <button 
+                        onClick={() => onBook(performer, isAvailable)}
+                        disabled={performer.status === 'rejected'}
+                        className={`w-full btn-primary !py-5 flex items-center justify-center gap-3 !text-[11px] font-black shadow-xl hover:shadow-orange-500/20 ${!isAvailable ? 'grayscale opacity-80 hover:grayscale-0' : ''} ${performer.status === 'rejected' ? '!bg-zinc-800 cursor-not-allowed grayscale' : ''}`}
+                    >
+                        {isAvailable ? <Zap size={18} className="fill-white" /> : <CalendarPlus size={18} />}
+                        {performer.status === 'rejected' ? 'CURRENTLY UNAVAILABLE' : (isAvailable ? 'BOOK NOW (ASAP)' : 'REQUEST FUTURE DATE')}
+                    </button>
+                    <button
+                        onClick={() => onToggleSelection(performer)}
+                        disabled={performer.status === 'rejected'}
+                        className={`w-full py-5 rounded-2xl border transition-all flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest ${isSelected ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'} ${performer.status === 'rejected' ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >
+                        {isSelected ? <Check size={18} /> : <Plus size={18} />}
+                        {isSelected ? 'Ready in Group' : 'Add to Group'}
+                    </button>
+                </div>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center">
+                    Verified ID Required &bull; Secure Process
+                </p>
+            </div>
+
+            {performer.service_areas && performer.service_areas.length > 0 && (
+                <div className="bg-zinc-900/20 border border-white/5 rounded-3xl p-6 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                        <MapPin size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Base Region</p>
+                        <p className="text-sm font-bold text-white uppercase tracking-tight">{performer.service_areas[0]}</p>
                     </div>
                 </div>
             )}
           </div>
         </div>
 
-        <div className="md:col-span-3">
-          <h1 className="text-5xl lg:text-7xl font-extrabold text-white mb-2">{performer.name}</h1>
-          <p className="text-2xl text-orange-400 font-medium mb-6">{performer.tagline}</p>
-          
-          <div className="flex flex-wrap gap-4 mb-6">
-             <button 
-               onClick={() => onBook(performer)}
-               className="btn-primary flex-1 md:flex-none py-3 px-8 text-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transform hover:-translate-y-1 transition-all"
-            >
-              <Sparkles className="h-5 w-5" />
-              Book Solo Now
-             </button>
-             <button
-                onClick={() => onToggleSelection(performer)}
-                className={`flex-1 md:flex-none py-3 px-8 text-lg flex items-center justify-center gap-2 rounded-lg font-semibold transition-all border ${isSelected ? 'bg-green-600 border-green-500 text-white hover:bg-green-700' : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
-             >
-                {isSelected ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-                {isSelected ? 'Added to Booking' : 'Add to Group Booking'}
-             </button>
-          </div>
+        <div className="lg:col-span-8 space-y-16 lg:pt-4">
+          <section className="space-y-6">
+            <div className="space-y-2">
+                <div className="flex items-center gap-2 text-orange-500 mb-2">
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                </div>
+                <h1 className="font-logo-main text-7xl md:text-8xl lg:text-9xl text-white tracking-tight uppercase leading-[0.85] break-words">
+                  {performer.name}
+                </h1>
+                <p className="text-xl md:text-2xl text-zinc-400 font-black uppercase tracking-[0.2em] pt-4">
+                  {performer.tagline}
+                </p>
+            </div>
+            <div className="prose prose-invert max-w-none">
+              <p className="text-lg md:text-xl text-zinc-300 leading-relaxed font-medium first-letter:text-5xl first-letter:font-black first-letter:text-orange-500 first-letter:mr-3 first-letter:float-left first-letter:mt-1">
+                {performer.bio}
+              </p>
+            </div>
+            <div className="pt-8 flex flex-col sm:flex-row items-center gap-6">
+               <button 
+                  onClick={() => onBook(performer, isAvailable)}
+                  className="btn-primary !py-6 !px-12 !text-base font-black tracking-[0.2em] flex items-center gap-4 group shadow-2xl hover:scale-105 transition-all"
+               >
+                  {isAvailable ? <Zap size={24} className="fill-white group-hover:scale-110 transition-transform" /> : <CalendarCheck size={24} />}
+                  INITIATE BOOKING REQUEST
+               </button>
+               <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Typical response time</span>
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">&lt; 15 Minutes</span>
+               </div>
+            </div>
+          </section>
 
-          <button
-            onClick={() => onBook(performer)}
-            className="w-full mb-10 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl shadow-xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.01] border border-green-500"
-          >
-            <CalendarCheck className="h-6 w-6" />
-            <span className="text-lg">Confirm Booking for {performer.name}</span>
-          </button>
+          {/* New Upcoming Bookings Section (Only for Performer/Admin) */}
+          {confirmedUpcomingBookings.length > 0 && (
+             <section className="space-y-8">
+               <div className="flex items-end justify-between border-b border-white/5 pb-6">
+                  <div className="space-y-1">
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                        <History size={24} className="text-orange-500" /> Live Schedule
+                    </h3>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Upcoming Vetted Gigs</p>
+                  </div>
+               </div>
 
-          <div className="prose prose-invert prose-lg max-w-none text-zinc-300 mb-10 leading-relaxed">
-            <p>{performer.bio}</p>
-          </div>
-          
+               <div className="grid gap-4">
+                 {confirmedUpcomingBookings.map(booking => (
+                   <div key={booking.id} className="bg-zinc-900/40 border border-white/5 p-6 rounded-3xl group/booking relative overflow-hidden transition-all hover:border-orange-500/20">
+                      <div className="flex flex-col md:flex-row justify-between gap-6 relative z-10">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <span className="text-white font-black text-xs uppercase tracking-widest">{booking.event_type}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                            <span className="flex items-center gap-2"><Calendar size={14} /> {new Date(booking.event_date).toLocaleDateString('en-AU')}</span>
+                            <span className="flex items-center gap-2"><Clock size={14} /> {booking.event_time}</span>
+                            <span className="flex items-center gap-2"><MapPin size={14} /> {booking.event_address.split(',')[0]}</span>
+                          </div>
+                        </div>
+
+                        {/* ETA Controls */}
+                        <div className="flex flex-col items-end gap-3 min-w-[140px]">
+                           {booking.performer_eta_minutes ? (
+                             <div className="bg-orange-500/10 border border-orange-500/20 px-4 py-2 rounded-2xl flex items-center gap-3">
+                               <Timer size={14} className="text-orange-500" />
+                               <span className="text-orange-400 font-black text-[10px] uppercase tracking-widest">ETA: {booking.performer_eta_minutes} MINS</span>
+                             </div>
+                           ) : (
+                             <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest mr-2">No ETA set</span>
+                           )}
+
+                           {canEditStatus && (
+                             <div className="flex items-center gap-2">
+                               {editingEtaId === booking.id ? (
+                                 <div className="flex items-center gap-2 animate-fade-in">
+                                   <input 
+                                     type="number" 
+                                     placeholder="Mins" 
+                                     value={etaValue}
+                                     onChange={(e) => setEtaValue(e.target.value)}
+                                     className="w-16 bg-zinc-950 border border-white/10 text-white rounded-xl px-2 py-1.5 text-xs font-black"
+                                   />
+                                   <button 
+                                     onClick={() => handleUpdateEta(booking.id)}
+                                     disabled={isUpdatingEta}
+                                     className="p-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-xl hover:bg-emerald-500/30 transition-all"
+                                   >
+                                     {isUpdatingEta ? <LoaderCircle size={14} className="animate-spin" /> : <Check size={14} />}
+                                   </button>
+                                   <button 
+                                     onClick={() => setEditingEtaId(null)}
+                                     className="p-2 bg-zinc-800 text-zinc-500 rounded-xl"
+                                   >
+                                     <X size={14} />
+                                   </button>
+                                 </div>
+                               ) : (
+                                 <button 
+                                   onClick={() => { setEditingEtaId(booking.id); setEtaValue(booking.performer_eta_minutes?.toString() || ''); }}
+                                   className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-orange-500 transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5"
+                                 >
+                                   <Timer size={12} />
+                                   {booking.performer_eta_minutes ? 'UPDATE ETA' : 'ADD ETA'}
+                                 </button>
+                               )}
+                             </div>
+                           )}
+                        </div>
+                      </div>
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 blur-3xl group-hover/booking:bg-orange-500/10 transition-all pointer-events-none"></div>
+                   </div>
+                 ))}
+               </div>
+             </section>
+          )}
+
           {performer.gallery_urls && performer.gallery_urls.length > 0 && (
-             <div className="mb-12">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <h3 className="text-3xl font-bold text-white flex items-center gap-3">
-                      <Camera className="h-7 w-7 text-orange-500" />
-                      Photo Gallery
-                  </h3>
-                  <div className="flex items-center gap-2 bg-zinc-800/50 p-1 rounded-lg border border-zinc-700 w-fit">
+             <section className="space-y-8">
+                <div className="flex items-end justify-between border-b border-white/5 pb-6">
+                  <div className="space-y-1">
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                        <Camera size={24} className="text-orange-500" /> Gallery
+                    </h3>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Candid & Professional Shots</p>
+                  </div>
+                  <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-xl border border-white/5">
                       <button 
                           onClick={() => setGallerySortMode('default')}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${gallerySortMode === 'default' ? 'bg-orange-500 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
-                          title="Sort by Date Uploaded"
+                          className={`p-2 rounded-lg transition-all ${gallerySortMode === 'default' ? 'bg-orange-500 text-white shadow-lg' : 'text-zinc-600 hover:text-zinc-400'}`}
                       >
-                          <History size={14} />
-                          Date
+                          <History size={16} />
                       </button>
                       <button 
                           onClick={() => setGallerySortMode('random')}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${gallerySortMode === 'random' ? 'bg-orange-500 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
-                          title="Randomly Shuffle"
+                          className={`p-2 rounded-lg transition-all ${gallerySortMode === 'random' ? 'bg-orange-500 text-white shadow-lg' : 'text-zinc-600 hover:text-zinc-400'}`}
                       >
-                          <Shuffle size={14} />
-                          Shuffle
+                          <Shuffle size={16} />
                       </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                     {displayGallery.map((url, index) => (
-                        <div key={`${url}-${index}`} className="aspect-square rounded-xl overflow-hidden cursor-pointer border border-zinc-800 hover:border-orange-500 transition-colors group relative" onClick={() => setSelectedImage(url)}>
-                            <img 
-                                src={url} 
-                                alt={`${performer.name} gallery ${index + 1}`} 
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div 
+                          key={`${url}-${index}`} 
+                          className="aspect-[4/5] rounded-3xl overflow-hidden cursor-pointer border border-white/5 hover:border-orange-500/50 transition-all group relative bg-zinc-950" 
+                          onClick={() => setSelectedImage(url)}
+                        >
+                            <img src={url} alt="Showcase" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                            <div className="absolute inset-0 bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         </div>
                     ))}
                 </div>
-             </div>
+             </section>
           )}
 
-           {/* Services Section */}
-           <div className="mb-12">
-               <h3 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-                   <Briefcase className="h-7 w-7 text-orange-500" />
-                   Services
-               </h3>
-               <div className="grid gap-4">
-                   {Object.entries(servicesByCategory).map(([category, services]) => {
+          <section className="space-y-8">
+               <div className="space-y-1 border-b border-white/5 pb-6">
+                   <h3 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                       <Briefcase size={24} className="text-orange-500" /> Services Menu
+                   </h3>
+                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Select an option to view details & pricing</p>
+               </div>
+               
+               <div className="space-y-6">
+                   {(Object.entries(servicesByCategory) as [string, Service[]][]).map(([category, services]) => {
                        const isCollapsed = !!collapsedCategories[category];
                        return (
-                           <div key={category} className="bg-zinc-900/50 rounded-xl border border-zinc-800 overflow-hidden">
+                           <div key={category} className="bg-zinc-900/20 rounded-[2.5rem] border border-white/5 overflow-hidden transition-all hover:border-orange-500/20 shadow-xl">
                                <button 
                                    onClick={() => toggleCategory(category)}
-                                   className="w-full flex items-center justify-between bg-zinc-800/50 px-6 py-4 border-b border-zinc-800 hover:bg-zinc-800 transition-colors text-left"
+                                   className="w-full flex items-center justify-between bg-zinc-950/60 px-8 py-7 hover:bg-zinc-900 transition-all text-left group/cat"
                                >
-                                   <h4 className="font-bold text-orange-400 text-lg">{category}</h4>
-                                   <div className="text-zinc-500">
-                                       {isCollapsed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+                                   <div className="flex items-center gap-5">
+                                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isCollapsed ? 'bg-zinc-900 text-zinc-600' : 'bg-orange-500 text-white shadow-[0_10px_20px_-5px_rgba(249,115,22,0.4)]'}`}>
+                                           <Layers size={20} />
+                                       </div>
+                                       <div>
+                                           <h4 className="font-black text-white text-xs uppercase tracking-[0.35em] group-hover/cat:text-orange-400 transition-colors">{category}</h4>
+                                           <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mt-1">{services.length} Option{services.length !== 1 ? 's' : ''}</p>
+                                       </div>
+                                   </div>
+                                   <div className={`w-10 h-10 rounded-full border border-white/5 flex items-center justify-center text-zinc-600 transition-all duration-500 ${isCollapsed ? '' : 'rotate-180 bg-white/5 text-white'}`}>
+                                       <ChevronDown size={20} />
                                    </div>
                                </button>
+                               
                                {!isCollapsed && (
-                                   <div className="p-2 animate-fade-in">
+                                   <div className="p-4 md:p-6 animate-fade-in space-y-4 bg-zinc-950/40">
                                        {services.map(service => (
-                                           <div key={service.id} className="border-b border-zinc-800/50 last:border-0">
+                                           <div key={service.id} className="bg-zinc-900/50 rounded-3xl border border-white/[0.03] overflow-hidden group/item hover:border-white/10 transition-all shadow-lg">
                                                <button 
                                                    onClick={() => toggleExpandService(service.id)}
-                                                   className="w-full flex items-center justify-between p-4 text-left hover:bg-zinc-800/30 transition-colors rounded-lg"
+                                                   className="w-full flex items-center justify-between p-6 md:p-8 text-left transition-all hover:bg-white/[0.01]"
                                                >
-                                                   <div>
-                                                       <span className="font-semibold text-white block">{service.name}</span>
-                                                       <span className="text-xs text-orange-400 font-mono">${service.rate} {service.rate_type === 'per_hour' ? '/hr' : ' flat'}</span>
+                                                   <div className="flex-1">
+                                                       <div className="flex items-center gap-3">
+                                                            <span className="font-black text-white text-lg block uppercase tracking-tight group-hover/item:text-orange-400 transition-colors leading-none">{service.name}</span>
+                                                       </div>
+                                                       <div className="flex items-center gap-3 mt-4">
+                                                            <div className="bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                                                <span className="text-[12px] text-orange-500 font-black uppercase tracking-widest">${service.rate} AUD</span>
+                                                                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-tighter">{service.rate_type === 'per_hour' ? '/ HOUR' : ' FLAT'}</span>
+                                                            </div>
+                                                            {service.duration_minutes && <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] flex items-center gap-1.5 ml-2"><Clock size={12} className="text-zinc-700"/> {service.duration_minutes} MINS</span>}
+                                                       </div>
                                                    </div>
-                                                    {expandedServiceId === service.id ? <ChevronDown className="text-zinc-500" size={18}/> : <ChevronDown className="text-zinc-500 -rotate-90" size={18}/>}
+                                                    <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-700 transition-all duration-300 group-hover/item:text-orange-500 ${expandedServiceId === service.id ? 'rotate-180 bg-orange-500/10 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : ''}`}>
+                                                        {expandedServiceId === service.id ? <ChevronDown size={24} /> : <Plus size={24} />}
+                                                    </div>
                                                </button>
                                                {expandedServiceId === service.id && (
-                                                   <div className="px-4 pb-4 pt-0 text-sm text-zinc-400 pl-4 border-l-2 border-orange-500/20 ml-4 mb-2 animate-fade-in-down">
-                                                       <p>{service.description}</p>
-                                                       {service.min_duration_hours && <p className="mt-2 text-xs opacity-70">Min Duration: {service.min_duration_hours} hr</p>}
-                                                       {service.booking_notes && <div className="mt-2 flex items-start gap-1.5 text-xs text-yellow-500/80 bg-yellow-900/10 p-2 rounded"><AlertCircle size={12} className="mt-0.5"/> {service.booking_notes}</div>}
+                                                   <div className="px-8 pb-10 pt-4 animate-fade-in border-t border-white/[0.03] bg-black/10">
+                                                       <div className="space-y-6 max-w-2xl">
+                                                           <div>
+                                                               <p className="text-xs font-black text-zinc-600 uppercase tracking-[0.3em] mb-3 flex items-center gap-2">
+                                                                   <Info size={14} className="text-orange-500" /> Service Description
+                                                               </p>
+                                                               <p className="text-zinc-300 text-base leading-relaxed font-medium">{service.description}</p>
+                                                           </div>
+                                                           
+                                                           <div className="flex flex-wrap gap-3">
+                                                              {service.min_duration_hours && (
+                                                                  <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-zinc-900 px-4 py-2 rounded-xl border border-white/5 text-zinc-500">
+                                                                      Minimum Booking: {service.min_duration_hours} HOUR{service.min_duration_hours !== 1 ? 'S' : ''}
+                                                                  </span>
+                                                              )}
+                                                              {service.rate_type === 'flat' && (
+                                                                  <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-orange-500/10 px-4 py-2 rounded-xl border border-orange-500/20 text-orange-400">
+                                                                      Fixed Event Rate
+                                                                  </span>
+                                                              )}
+                                                           </div>
+
+                                                           {service.booking_notes && (
+                                                              <div className="mt-8 p-6 rounded-2xl bg-orange-500/[0.03] border border-orange-500/10 shadow-inner group/note">
+                                                                  <div className="flex items-center gap-3 mb-3">
+                                                                      <AlertCircle size={18} className="text-orange-500 group-hover/note:scale-110 transition-transform"/> 
+                                                                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Booking Standards</span>
+                                                                  </div>
+                                                                  <p className="text-[11px] font-bold uppercase tracking-widest text-orange-400/70 leading-relaxed italic">
+                                                                      "{service.booking_notes}"
+                                                                  </p>
+                                                              </div>
+                                                           )}
+                                                       </div>
                                                    </div>
                                                )}
                                            </div>
@@ -295,8 +478,27 @@ const PerformerProfile: React.FC<PerformerProfileProps> = ({ performer, onBack, 
                        );
                    })}
                </div>
-           </div>
+          </section>
 
+          <section className="bg-orange-500/5 border border-orange-500/10 rounded-[3rem] p-10 md:p-16 text-center space-y-6 relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-orange-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+              <div className="flex justify-center -space-x-4 relative z-10">
+                  {[1,2,3,4].map(i => (
+                      <div key={i} className="w-12 h-12 rounded-full border-4 border-zinc-950 bg-zinc-800 flex items-center justify-center text-[10px] font-black text-zinc-500 uppercase shadow-xl">
+                          VIP
+                      </div>
+                  ))}
+              </div>
+              <div className="space-y-2 relative z-10">
+                <h3 className="text-2xl font-black text-white uppercase tracking-tight">Trusted by Perth's Elite</h3>
+                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest leading-relaxed max-w-md mx-auto">
+                    Professional, discreet, and always exceptional. Join our circle of satisfied clients today.
+                </p>
+              </div>
+              <button onClick={() => onBook(performer, isAvailable)} className="btn-primary !px-12 !py-4 font-black text-[11px] shadow-2xl relative z-10">
+                  REQUEST BOOKING NOW
+              </button>
+          </section>
         </div>
       </div>
     </div>

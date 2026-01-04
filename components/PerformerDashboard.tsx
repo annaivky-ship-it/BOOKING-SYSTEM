@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { Performer, PerformerStatus, Booking, Communication } from '../types';
-import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle, DollarSign, CalendarPlus } from 'lucide-react';
-import { calculateBookingCost } from '../utils/bookingUtils';
+// Added History to imports
+import { ToggleLeft, ToggleRight, Radio, Calendar, User, Clock, ShieldAlert, MessageSquare, Inbox, Check, X, Users, Timer, LoaderCircle, DollarSign, CalendarPlus, AlertTriangle, History } from 'lucide-react';
+import { calculateBookingCost, generateCalendarLinks } from '../utils/bookingUtils';
 import ReferralFeeModal from './ReferralFeeModal';
 
 interface PerformerDashboardProps {
@@ -17,9 +18,9 @@ interface PerformerDashboardProps {
 
 const statusConfig: Record<PerformerStatus, { color: string; label: string; icon: React.ReactNode; bgColor: string; }> = {
     available: { color: 'text-green-400', label: 'Available', icon: <ToggleRight size={20}/>, bgColor: 'bg-green-500/20' },
-    busy: { color: 'text-yellow-400', label: 'Busy', icon: <ToggleLeft size={20}/>, bgColor: 'bg-yellow-500/20' },
-    offline: { color: 'text-zinc-400', label: 'Offline', icon: <Radio size={20}/>, bgColor: 'bg-zinc-500/20' },
+    unavailable: { color: 'text-zinc-400', label: 'Unavailable', icon: <Radio size={20}/>, bgColor: 'bg-zinc-500/20' },
     pending: { color: 'text-purple-400', label: 'Pending Approval', icon: <LoaderCircle size={20}/>, bgColor: 'bg-purple-500/20' },
+    rejected: { color: 'text-red-400', label: 'Rejected', icon: <AlertTriangle size={20}/>, bgColor: 'bg-red-500/20' },
 };
 
 const bookingStatusClasses: Record<Booking['status'], string> = {
@@ -30,40 +31,6 @@ const bookingStatusClasses: Record<Booking['status'], string> = {
   pending_performer_acceptance: 'text-purple-400',
   rejected: 'text-red-400'
 }
-
-const generateGoogleCalendarLink = (booking: Booking): string => {
-    const {
-        event_type,
-        client_name,
-        event_date,
-        event_time,
-        duration_hours,
-        event_address,
-        client_phone,
-        number_of_guests,
-        client_message,
-    } = booking;
-
-    const startTime = new Date(`${event_date}T${event_time}`);
-    if (isNaN(startTime.getTime())) {
-        console.error("Invalid date for booking:", booking.id);
-        return '#';
-    }
-
-    const endTime = new Date(startTime.getTime() + duration_hours * 60 * 60 * 1000);
-
-    const toGoogleFormat = (date: Date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
-
-    const params = new URLSearchParams({
-        action: 'TEMPLATE',
-        text: `Flavor Booking: ${event_type} w/ ${client_name}`,
-        dates: `${toGoogleFormat(startTime)}/${toGoogleFormat(endTime)}`,
-        details: `Booking Details:\n\nClient: ${client_name}\nPhone: ${client_phone}\nAddress: ${event_address}\nGuests: ${number_of_guests}\n\nNotes From Client:\n${client_message || 'N/A'}\n\n---\nBooked via Flavor Entertainers`,
-        location: event_address,
-    });
-
-    return `https://www.google.com/calendar/render?${params.toString()}`;
-};
 
 interface BookingCardProps {
   booking: Booking;
@@ -141,21 +108,20 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
   };
   
   const handleToggleStatus = async () => {
-    if (performer.status === 'pending') return; // Cannot toggle if pending
+    if (performer.status === 'pending' || performer.status === 'rejected') return; 
     
     setIsTogglingStatus(true);
     try {
-      await onToggleStatus(nextStatus[performer.status]);
+      const next: Record<PerformerStatus, PerformerStatus> = {
+          available: 'unavailable',
+          unavailable: 'available',
+          pending: 'pending',
+          rejected: 'rejected'
+      };
+      await onToggleStatus(next[performer.status]);
     } finally {
       setIsTogglingStatus(false);
     }
-  };
-
-  const nextStatus: Record<PerformerStatus, PerformerStatus> = {
-    available: 'busy',
-    busy: 'offline',
-    offline: 'available',
-    pending: 'pending' // No change if pending
   };
 
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
@@ -179,13 +145,15 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
           <h1 className="text-4xl font-bold text-white">Performer Dashboard</h1>
           <p className="text-xl text-orange-400 mt-1">Welcome, {performer.name}</p>
         </div>
-        <button 
-          onClick={onViewDoNotServe}
-          className="bg-red-600/90 hover:bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg shadow-red-500/10 hover:shadow-red-500/20"
-        >
-          <ShieldAlert className="h-5 w-5" />
-          'Do Not Serve' List
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={onViewDoNotServe}
+            className="bg-red-600/90 hover:bg-red-600 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg shadow-red-500/10 hover:shadow-red-500/20"
+          >
+            <ShieldAlert className="h-5 w-5" />
+            'Do Not Serve' List
+          </button>
+        </div>
       </div>
       
       {performer.status === 'pending' && (
@@ -194,6 +162,16 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
               <div>
                   <h3 className="font-bold text-purple-300">Account Pending Approval</h3>
                   <p className="text-zinc-300 text-sm">Your profile is currently under review by our administration team. You will be able to update your availability once approved.</p>
+              </div>
+          </div>
+      )}
+
+      {performer.status === 'rejected' && (
+          <div className="bg-red-900/30 border border-red-500 p-4 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="text-red-400 mt-1" />
+              <div>
+                  <h3 className="font-bold text-red-300">Account Rejected</h3>
+                  <p className="text-zinc-300 text-sm">Unfortunately, your application to join the Flavor roster has been declined. Please contact administration for further details.</p>
               </div>
           </div>
       )}
@@ -210,11 +188,11 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
           </div>
           <button 
             onClick={handleToggleStatus}
-            disabled={isTogglingStatus || performer.status === 'pending'}
+            disabled={isTogglingStatus || performer.status === 'pending' || performer.status === 'rejected'}
             className="btn-primary mt-6 w-full flex items-center justify-center gap-2"
           >
-            {isTogglingStatus ? <LoaderCircle size={20} className="animate-spin" /> : (performer.status === 'pending' ? <X size={20}/> : statusConfig[nextStatus[performer.status]].icon)}
-            {isTogglingStatus ? 'Updating...' : (performer.status === 'pending' ? 'Awaiting Approval' : `Switch to ${statusConfig[nextStatus[performer.status]].label}`)}
+            {isTogglingStatus ? <LoaderCircle size={20} className="animate-spin" /> : <ToggleLeft size={20} />}
+            {isTogglingStatus ? 'Updating...' : 'Toggle Availability'}
           </button>
         </div>
          <div className="card-base !p-6 lg:col-span-2">
@@ -224,7 +202,7 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
                   {communications.map(comm => (
                     <div key={comm.id} className="bg-zinc-900/70 p-3 rounded-md text-sm border border-zinc-700/50">
                         <p className="text-zinc-200">{comm.message}</p>
-                        <p className="text-xs text-zinc-500 mt-1">From: <span className="text-orange-400 font-semibold">{comm.sender}</span> &bull; {new Date(comm.created_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-zinc-500 mt-1">From: <span className="text-orange-400 font-semibold">{comm.sender}</span> & bull; {new Date(comm.created_at).toLocaleDateString()}</p>
                     </div>
                   ))}
                 </div>
@@ -257,6 +235,15 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
                   <div className="space-y-4">
                      {confirmedBookings.map(booking => {
                         const { totalCost, referralFee } = calculateBookingCost(booking.duration_hours, booking.services_requested, 1);
+                        const calendarLinks = generateCalendarLinks({
+                            title: `Flavor Booking: ${booking.event_type} w/ ${booking.client_name}`,
+                            description: `Booking Details:\n\nClient: ${booking.client_name}\nPhone: ${booking.client_phone}\nAddress: ${booking.event_address}\nGuests: ${booking.number_of_guests}\n\nNotes From Client:\n${booking.client_message || 'N/A'}\n\n---\nBooked via Flavor Entertainers`,
+                            location: booking.event_address,
+                            date: booking.event_date,
+                            time: booking.event_time,
+                            durationHours: booking.duration_hours
+                        });
+
                         return (
                            <div key={booking.id} className="bg-zinc-900/70 p-4 rounded-lg border border-zinc-700/50">
                               <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
@@ -287,17 +274,23 @@ const PerformerDashboard: React.FC<PerformerDashboardProps> = ({ performer, book
                                   </div>
                               </div>
                                <div className="mt-4 pt-4 border-t border-zinc-700/50 flex justify-between items-center">
-                                    <a
-                                        href={generateGoogleCalendarLink(booking)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold py-1.5 px-3 rounded-md flex items-center justify-center gap-1.5 transition-colors shadow-md"
-                                    >
-                                        <CalendarPlus size={14} /> Add to Calendar
-                                    </a>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => window.open(calendarLinks.googleUrl, '_blank')}
+                                            className="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold py-1.5 px-3 rounded-md flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                                        >
+                                            <CalendarPlus size={14} /> Google
+                                        </button>
+                                        <button
+                                            onClick={() => window.open(calendarLinks.outlookUrl, '_blank')}
+                                            className="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold py-1.5 px-3 rounded-md flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                                        >
+                                            <CalendarPlus size={14} /> Outlook
+                                        </button>
+                                    </div>
                                    <div>
                                       {booking.referral_fee_paid ? (
-                                        <span className="text-xs bg-green-500/20 text-green-300 font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5"><Check size={14}/> Fee Paid</span>
+                                        <span className="text-xs bg-green-500/20 text-green-300 font-bold py-1.5 px-3 rounded-full flex items-center gap-1.5"><History size={14} className="hidden" /> Fee Paid</span>
                                       ) : (
                                         <button onClick={() => setReferralModalBooking(booking)} className="btn-primary !py-1.5 !px-4 !text-xs !font-bold flex items-center gap-2">
                                             Pay Referral Fee

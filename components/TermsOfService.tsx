@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X } from 'lucide-react';
 
@@ -38,22 +39,30 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onClose }) => {
             <li><strong>Application:</strong> All bookings are considered an application until they pass our internal vetting process.</li>
             <li><strong>Deposit:</strong> A non-refundable deposit is required to confirm a booking. The deposit amount is calculated as a percentage of the total booking cost.</li>
             <li><strong>Final Payment:</strong> The remaining balance is due in cash directly to the Performer upon their arrival at the event, unless otherwise specified.</li>
-            <li><strong>Cancellations:</strong> If a Client cancels after the deposit is paid, the deposit is forfeited. If a Performer cancels, we will make every effort to find a suitable replacement or issue a full refund of the deposit.</li>
           </ul>
 
-          <h3>5. Code of Conduct</h3>
+          <h3>5. Cancellation and Rescheduling Policy</h3>
+          <p>Our cancellation policy is designed to protect the time and livelihood of our performers while providing flexibility for our clients.</p>
+          <ul>
+            <li><strong>Client Cancellations & Deposit Forfeiture:</strong> Once a deposit is paid, it is strictly non-refundable. This compensates the agency for administrative vetting and the Performer for holding the date. If a client cancels within 24 hours of the event start time, the agency reserves the right to charge the full remaining balance.</li>
+            <li><strong>Rescheduling:</strong> Clients may request to reschedule an event up to 48 hours before the start time. Rescheduling is subject to Performer availability. A $50 administrative fee may apply to any rescheduled booking.</li>
+            <li><strong>Performer Cancellations:</strong> In the rare event that a Performer is unable to attend (e.g., due to illness or emergency), the agency will make every effort to provide a replacement Performer of equal quality. If a suitable replacement cannot be found, the Client will receive a full refund of their deposit.</li>
+            <li><strong>Force Majeure:</strong> Neither party shall be liable for cancellations due to events beyond their reasonable control, such as natural disasters or government mandates. In such cases, the deposit will be held as credit for a future booking.</li>
+          </ul>
+
+          <h3>6. Code of Conduct</h3>
           <p>Our platform is built on mutual respect. The Performer has the right to leave the event at any time, without a refund, if they feel unsafe, harassed, or if the Client attempts to solicit illegal or non-agreed-upon services. Such incidents will result in the Client being permanently added to our 'Do Not Serve' list.</p>
 
-          <h3>6. Limitation of Liability</h3>
+          <h3>7. Limitation of Liability</h3>
           <p>Flavor Entertainers is not liable for any incidents, damages, or disputes that may occur during an event between the Client and the Performer. Our liability is limited strictly to the booking process and the deposit amount paid through our platform.</p>
 
-          <h3>7. Governing Law</h3>
+          <h3>8. Governing Law</h3>
           <p>These Terms shall be governed and construed in accordance with the laws of Western Australia, without regard to its conflict of law provisions.</p>
           
-          <h3>8. Changes to Terms</h3>
+          <h3>9. Changes to Terms</h3>
           <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. We will provide notice of any significant changes.</p>
 
-          <h3>9. Contact Us</h3>
+          <h3>10. Contact Us</h3>
           <p>If you have any questions about these Terms, please contact us through our official communication channels.</p>
         </div>
         <div className="flex-shrink-0 p-4 bg-zinc-950/50 border-t border-zinc-800 text-right">

@@ -1,61 +1,60 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Play, Pause, RefreshCcw, BookDashed, PhoneOff, Sheet, UserX, BarChartHorizontal, ShieldCheck, SearchCheck, FastForward, Database, Triangle, DollarSign, Target } from 'lucide-react';
+import { X, Play, Pause, RefreshCcw, BookDashed, PhoneOff, Sheet, UserX, BarChartHorizontal, ShieldCheck, SearchCheck, FastForward, Star, Crown, DollarSign, Target, HeartHandshake } from 'lucide-react';
 
 const scenes = [
   {
     duration: 5,
-    title: 'The Problem',
-    vo: "Running an entertainment agency is chaos. Manual bookings, constant calls, and performer safety risks drain your time and profits.",
+    title: 'The Industry Challenge',
+    vo: "Managing professional entertainment can be unpredictable. Unreliable bookings and safety risks waste time and compromise your reputation.",
     visuals: () => (
       <div className="flex gap-8 text-red-400 animate-pulse">
         <BookDashed size={64} />
         <PhoneOff size={64} />
-        <Sheet size={64} />
         <UserX size={64} />
       </div>
     ),
   },
   {
     duration: 10,
-    title: 'The Old Way vs. The New Way',
-    vo: "You're stuck managing logistics instead of growing your business. What if you could automate the chaos and focus on what matters?",
+    title: 'A New Standard of Service',
+    vo: "Stop settling for inconsistent communication. Flavor Entertainers provides direct, vetted access to Perth's top talent with instant updates.",
     visuals: () => (
       <div className="flex items-center gap-8">
-        <div className="text-zinc-500 text-center"><p>Old Way</p><BarChartHorizontal size={80} /></div>
+        <div className="text-zinc-500 text-center opacity-50"><p className="text-[10px] mb-2 font-black">Inconsistent</p><BarChartHorizontal size={60} /></div>
         <FastForward size={40} className="text-orange-500" />
-        <div className="text-green-400 text-center"><p>New Way</p><BarChartHorizontal size={80} className="transform -scale-y-100"/></div>
+        <div className="text-green-400 text-center"><p className="text-[10px] mb-2 font-black">Premium Flow</p><BarChartHorizontal size={80} className="transform -scale-y-100"/></div>
       </div>
     ),
   },
   {
     duration: 15,
-    title: 'The Solution: Competitive Advantage',
-    vo: "This isn't just a booking site; it's a complete business management system with an unmatched safety system, a robust vetting process, and a VIP workflow that fast-tracks your best customers.",
+    title: 'Unmatched Safety & Discretion',
+    vo: "Our service is built on protection. We use a private safety list to block problem individuals and a robust vetting process to ensure every event is elite and respectful.",
     visuals: () => (
       <div className="flex gap-8 text-orange-400">
-        <div className="flex flex-col items-center gap-2"><ShieldCheck size={64} /><p className="text-sm font-semibold">Automated Safety</p></div>
-        <div className="flex flex-col items-center gap-2"><SearchCheck size={64} /><p className="text-sm font-semibold">Robust Vetting</p></div>
-        <div className="flex flex-col items-center gap-2"><FastForward size={64} /><p className="text-sm font-semibold">VIP Workflow</p></div>
+        <div className="flex flex-col items-center gap-2"><ShieldCheck size={64} /><p className="text-[10px] font-black uppercase">Safety Guard</p></div>
+        <div className="flex flex-col items-center gap-2"><SearchCheck size={64} /><p className="text-[10px] font-black uppercase">Vetting</p></div>
+        <div className="flex flex-col items-center gap-2"><Star size={64} /><p className="text-[10px] font-black uppercase">Excellence</p></div>
       </div>
     ),
   },
   {
     duration: 15,
-    title: 'The Technology & Cost',
-    vo: "Built on a modern, scalable tech stack, our platform is engineered for growth. With a serverless backend, your core technology costs can start at less than a hundred dollars a month.",
+    title: 'Operational Excellence',
+    vo: "Our agency uses a streamlined confirmation workflow that removes administrative friction. From automated notifications to secure deposit handling, we focus on the experience.",
     visuals: () => (
       <div className="flex items-center gap-8">
-        <div className="flex flex-col items-center gap-2 text-cyan-400"><Database size={64} /><p className="text-sm font-semibold">Supabase</p></div>
-        <div className="flex flex-col items-center gap-2 text-white"><Triangle size={64} /><p className="text-sm font-semibold">Vercel</p></div>
-        <div className="flex flex-col items-center gap-2 text-green-400"><DollarSign size={64} /><p className="text-sm font-semibold">Low Cost</p></div>
+        <div className="flex flex-col items-center gap-2 text-orange-500"><HeartHandshake size={64} /><p className="text-[10px] font-black uppercase">Reliability</p></div>
+        <div className="flex flex-col items-center gap-2 text-white"><Crown size={64} /><p className="text-[10px] font-black uppercase">Elite Roster</p></div>
+        <div className="flex flex-col items-center gap-2 text-green-400"><DollarSign size={64} /><p className="text-[10px] font-black uppercase">Secure Financials</p></div>
       </div>
     ),
   },
   {
     duration: 10,
-    title: 'The Vision',
-    vo: "Stop managing, start scaling. Reduce overhead, increase performer safety, and deliver a premium experience that builds client loyalty. This is the turnkey solution your agency has been waiting for.",
+    title: 'The Agency Vision',
+    vo: "Flavor Entertainers is Western Australia's most trusted partner for high-end events. We deliver professional, discreet, and exceptional entertainment every time.",
     visuals: () => (
       <div className="flex items-center gap-8 text-purple-400">
           <Target size={120} />
@@ -64,8 +63,8 @@ const scenes = [
   },
   {
     duration: 5,
-    title: 'Call to Action',
-    vo: 'Ready to transform your agency? Visit our site to schedule a full demo and discuss licensing opportunities.',
+    title: 'Your Next Event Starts Here',
+    vo: 'Ready to elevate your environment? Request our premium talent today and experience the Flavor difference.',
     visuals: () => (
       <div className="flex flex-col items-center text-white">
         <div className="flex items-center">
@@ -148,9 +147,9 @@ const PresentationVideo: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="flex-grow flex flex-col items-center justify-center text-center text-white relative overflow-hidden">
         {scenes.map((scene, index) => (
            <div key={index} className={`absolute inset-0 flex flex-col items-center justify-center gap-8 p-4 transition-opacity duration-700 ${index === sceneIndex ? 'opacity-100' : 'opacity-0'}`}>
-              <h2 className="text-2xl sm:text-3xl font-bold text-orange-400">{scene.title}</h2>
+              <h2 className="text-2xl sm:text-3xl font-black text-orange-400 uppercase tracking-tighter">{scene.title}</h2>
               <div className="min-h-[128px] flex items-center justify-center">{scene.visuals()}</div>
-              <p className="max-w-3xl text-lg sm:text-xl text-zinc-200 leading-relaxed">{scene.vo}</p>
+              <p className="max-w-3xl text-lg sm:text-xl text-zinc-300 leading-relaxed font-medium">{scene.vo}</p>
            </div>
         ))}
       </div>

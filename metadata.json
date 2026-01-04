@@ -1,6 +1,8 @@
 {
   "name": "Flavor Entertainers",
   "description": "A premium platform to book professional entertainers in Western Australia. Secure, compliant, and professional.",
-  "requestFramePermissions": [],
-  "prompt": ""
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "prompt": "Improve the booking flow to be 2-3 steps, add a mobile action bar, simplify language to direct outcomes, and refine the admin dashboard with stats and approval queues."
 }

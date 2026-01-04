@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { api } from '../services/api';
-import { ArrowLeft, User, Mail, Lock, Sparkles, Image as ImageIcon, Briefcase, CheckCircle, LoaderCircle, AlertTriangle, Camera } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, Sparkles, Image as ImageIcon, Briefcase, CheckCircle, LoaderCircle, AlertTriangle, Camera, MapPin } from 'lucide-react';
 import InputField from './InputField';
-import { allServices } from '../data/mockData';
+import { allServices, WA_REGIONS } from '../data/mockData';
 import type { Service } from '../types';
 
 interface PerformerRegistrationProps {
@@ -14,7 +14,7 @@ interface PerformerRegistrationProps {
 const steps = [
   { id: 1, title: 'Account', icon: Lock },
   { id: 2, title: 'Profile', icon: User },
-  { id: 3, title: 'Services', icon: Briefcase },
+  { id: 3, title: 'What & Where', icon: Briefcase },
 ];
 
 const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, onSuccess }) => {
@@ -30,7 +30,8 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
     tagline: '',
     bio: '',
     photo_url: '',
-    service_ids: [] as string[]
+    service_ids: [] as string[],
+    service_areas: [] as string[]
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -44,6 +45,17 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
             return { ...prev, service_ids: prev.service_ids.filter(sid => sid !== id) };
         } else {
             return { ...prev, service_ids: [...prev.service_ids, id] };
+        }
+    });
+  };
+
+  const handleAreaToggle = (area: string) => {
+    setFormData(prev => {
+        const exists = prev.service_areas.includes(area);
+        if (exists) {
+            return { ...prev, service_areas: prev.service_areas.filter(a => a !== area) };
+        } else {
+            return { ...prev, service_areas: [...prev.service_areas, area] };
         }
     });
   };
@@ -91,6 +103,10 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
             setError("Please select at least one service you provide.");
             return false;
         }
+        if (formData.service_areas.length === 0) {
+            setError("Please select at least one service zone.");
+            return false;
+        }
     }
     return true;
   };
@@ -114,14 +130,9 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
      
      try {
          const { success, error } = await api.registerPerformer({
-             email: formData.email,
-             password: formData.password,
-             name: formData.name,
-             tagline: formData.tagline,
-             bio: formData.bio,
-             photo_url: formData.photo_url || 'https://images.pexels.com/photos/1540406/pexels-photo-1540406.jpeg?auto=compress&cs=tinysrgb&w=800', // Demo default
-             service_ids: formData.service_ids
-         });
+             ...formData,
+             photo_url: formData.photo_url || 'https://images.pexels.com/photos/1540406/pexels-photo-1540406.jpeg?auto=compress&cs=tinysrgb&w=800', 
+         } as any);
          
          if (!success) {
              throw new Error(error.message || 'Registration failed.');
@@ -155,7 +166,6 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
                 <p className="text-zinc-400">Apply to become a Flavor Performer.</p>
             </div>
 
-            {/* Steps Indicator */}
             <div className="flex justify-center items-center gap-4 mb-8">
                 {steps.map((step, idx) => (
                     <React.Fragment key={step.id}>
@@ -182,33 +192,9 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
             {currentStep === 1 && (
                 <div className="space-y-6 animate-fade-in">
                     <h2 className="text-xl font-semibold text-white mb-4">Account Credentials</h2>
-                    <InputField 
-                        icon={<Mail />} 
-                        type="email" 
-                        name="email" 
-                        placeholder="Email Address" 
-                        value={formData.email} 
-                        onChange={handleChange} 
-                        required 
-                    />
-                    <InputField 
-                        icon={<Lock />} 
-                        type="password" 
-                        name="password" 
-                        placeholder="Password (min 6 chars)" 
-                        value={formData.password} 
-                        onChange={handleChange} 
-                        required 
-                    />
-                    <InputField 
-                        icon={<Lock />} 
-                        type="password" 
-                        name="confirmPassword" 
-                        placeholder="Confirm Password" 
-                        value={formData.confirmPassword} 
-                        onChange={handleChange} 
-                        required 
-                    />
+                    <InputField icon={<Mail />} type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} required />
+                    <InputField icon={<Lock />} type="password" name="password" placeholder="Password (min 6 chars)" value={formData.password} onChange={handleChange} required />
+                    <InputField icon={<Lock />} type="password" name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} required />
                 </div>
             )}
 
@@ -226,97 +212,72 @@ const PerformerRegistration: React.FC<PerformerRegistrationProps> = ({ onBack, o
                                     <span className="text-xs mt-1 font-semibold">Add Photo</span>
                                 </div>
                             )}
-                            <input 
-                                type="file" 
-                                accept="image/*" 
-                                onChange={handleImageUpload} 
-                                className="absolute inset-0 opacity-0 cursor-pointer"
-                            />
+                            <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                         </div>
-                        <p className="text-xs text-zinc-500 mt-2">Tap to take a photo or select from device</p>
                     </div>
 
-                    <InputField 
-                        icon={<Sparkles />} 
-                        name="name" 
-                        placeholder="Stage Name" 
-                        value={formData.name} 
-                        onChange={handleChange} 
-                        required 
-                    />
-                    <InputField 
-                        icon={<Briefcase />} 
-                        name="tagline" 
-                        placeholder="Tagline (e.g., 'The Life of the Party')" 
-                        value={formData.tagline} 
-                        onChange={handleChange} 
-                        required 
-                    />
+                    <InputField icon={<Sparkles />} name="name" placeholder="Stage Name" value={formData.name} onChange={handleChange} required />
+                    <InputField icon={<Briefcase />} name="tagline" placeholder="Tagline" value={formData.tagline} onChange={handleChange} required />
                      <div className="relative">
                         <User className="absolute left-4 top-4 h-5 w-5 text-zinc-500" />
-                        <textarea
-                            name="bio"
-                            placeholder="Your Bio (Tell clients about yourself and your style)"
-                            value={formData.bio}
-                            onChange={handleChange}
-                            required
-                            className="input-base input-with-icon h-32 resize-y"
-                        />
+                        <textarea name="bio" placeholder="Your Bio" value={formData.bio} onChange={handleChange} required className="input-base input-with-icon h-32 resize-none" />
                     </div>
                 </div>
             )}
 
             {currentStep === 3 && (
-                <div className="space-y-6 animate-fade-in">
-                    <h2 className="text-xl font-semibold text-white mb-4">Select Your Services</h2>
-                    <p className="text-zinc-400 text-sm mb-4">Choose the services you are willing to perform. You can update these later.</p>
-                    <div className="max-h-80 overflow-y-auto pr-2">
-                        {Object.entries(servicesByCategory).map(([category, services]) => (
-                            <div key={category} className="mb-6">
-                                <h3 className="text-orange-400 font-semibold mb-3 border-b border-zinc-700 pb-1">{category}</h3>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {services.map(service => (
-                                        <label key={service.id} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${formData.service_ids.includes(service.id) ? 'bg-orange-500/10 border-orange-500/50' : 'bg-zinc-900 border-zinc-700 hover:border-zinc-500'}`}>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={formData.service_ids.includes(service.id)} 
-                                                onChange={() => handleServiceToggle(service.id)}
-                                                className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-600 focus:ring-orange-500"
-                                            />
-                                            <div className="ml-3">
-                                                <span className={`block font-medium ${formData.service_ids.includes(service.id) ? 'text-white' : 'text-zinc-300'}`}>{service.name}</span>
-                                                <span className="text-xs text-zinc-500">${service.rate} {service.rate_type === 'per_hour' ? '/hr' : ' flat'}</span>
-                                            </div>
-                                        </label>
-                                    ))}
+                <div className="space-y-10 animate-fade-in">
+                    <div>
+                        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2"><Briefcase size={20} className="text-orange-500"/> Services Offered</h2>
+                        <div className="max-h-60 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                            {(Object.entries(servicesByCategory) as [string, Service[]][]).map(([category, services]) => (
+                                <div key={category}>
+                                    <h3 className="text-orange-400 text-[10px] font-black uppercase tracking-widest mb-3 border-b border-zinc-700 pb-1">{category}</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {services.map(service => (
+                                            <label key={service.id} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${formData.service_ids.includes(service.id) ? 'bg-orange-500/10 border-orange-500/30' : 'bg-zinc-900 border-transparent hover:border-zinc-700'}`}>
+                                                <input type="checkbox" checked={formData.service_ids.includes(service.id)} onChange={() => handleServiceToggle(service.id)} className="sr-only" />
+                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${formData.service_ids.includes(service.id) ? 'bg-orange-500 border-orange-500' : 'border-white/10 bg-zinc-950'}`}>
+                                                    {formData.service_ids.includes(service.id) && <CheckCircle size={12} className="text-white" />}
+                                                </div>
+                                                <span className={`ml-3 text-xs font-bold uppercase tracking-wider ${formData.service_ids.includes(service.id) ? 'text-white' : 'text-zinc-500'}`}>{service.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2"><MapPin size={20} className="text-orange-500"/> Service Zones</h2>
+                        <p className="text-zinc-500 text-xs mb-4 font-medium uppercase tracking-widest">Where are you willing to work?</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {WA_REGIONS.map(area => (
+                                <label key={area} className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${formData.service_areas.includes(area) ? 'bg-orange-500/10 border-orange-500/30' : 'bg-zinc-900 border-transparent hover:border-zinc-700'}`}>
+                                    <input type="checkbox" checked={formData.service_areas.includes(area)} onChange={() => handleAreaToggle(area)} className="sr-only" />
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${formData.service_areas.includes(area) ? 'bg-orange-500 border-orange-500' : 'border-white/10 bg-zinc-950'}`}>
+                                        {formData.service_areas.includes(area) && <CheckCircle size={12} className="text-white" />}
+                                    </div>
+                                    <span className={`ml-3 text-xs font-bold uppercase tracking-wider ${formData.service_areas.includes(area) ? 'text-white' : 'text-zinc-500'}`}>{area}</span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
 
             <div className="mt-8 flex justify-between pt-6 border-t border-zinc-800">
-                <button 
-                    onClick={handlePrev} 
-                    disabled={currentStep === 1 || isSubmitting}
-                    className={`px-6 py-2 rounded-lg font-semibold transition-colors ${currentStep === 1 ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700'}`}
-                >
-                    Back
-                </button>
-                
+                <button onClick={handlePrev} disabled={currentStep === 1 || isSubmitting} className={`px-6 py-2 rounded-lg font-semibold transition-colors ${currentStep === 1 ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700'}`}>Back</button>
                 {currentStep < 3 ? (
-                    <button onClick={handleNext} className="btn-primary px-8 py-2">
-                        Next
-                    </button>
+                    <button onClick={handleNext} className="btn-primary px-8 py-2">Next</button>
                 ) : (
                     <button onClick={handleSubmit} disabled={isSubmitting} className="btn-primary px-8 py-2 flex items-center gap-2">
                         {isSubmitting ? <LoaderCircle className="animate-spin h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
-                        {isSubmitting ? 'Creating Account...' : 'Complete Registration'}
+                        {isSubmitting ? 'Sending Request...' : 'Complete Join Request'}
                     </button>
                 )}
             </div>
-
         </div>
       </div>
     </div>

@@ -1,41 +1,51 @@
 
 import type { Performer, Booking, DoNotServeEntry, Service, Communication } from '../types';
 
-export const allServices: Service[] = [
-    // Waitressing
-    { id: 'waitress-lingerie', category: 'Waitressing', name: 'Lingerie Waitress', description: 'Elegant and flirty. Serves drinks in sexy lingerie.', rate: 110, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Private events only' },
-    { id: 'waitress-topless', category: 'Waitressing', name: 'Topless Waitress', description: 'Topless service for fun and cheeky vibes.', rate: 160, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Private events only' },
-    { id: 'waitress-nude', category: 'Waitressing', name: 'Nude Waitress', description: 'Bold full nude service. Great for wild private parties.', rate: 260, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Private events only' },
-    // Strip Shows
-    { id: 'show-hot-cream', category: 'Strip Show', name: 'Hot Cream Show', description: 'Flirty strip ending with whipped cream play.', rate: 444380, rate_type: 'flat', duration_minutes: 10, booking_notes: 'Includes cream and strip show' },
-    { id: 'show-pearl', category: 'Strip Show', name: 'Pearl Show', description: 'G-string strip with classic pearl finish.', rate: 500, rate_type: 'flat', duration_minutes: 15, booking_notes: 'Standard solo strip show' },
-    { id: 'show-toy', category: 'Strip Show', name: 'Toy Show', description: 'Full nude strip with toy performance.', rate: 550, rate_type: 'flat', duration_minutes: 15, booking_notes: 'Includes toy play' },
-    { id: 'show-pearls-vibe-cream', category: 'Strip Show', name: 'Pearls, Vibe + Cream', description: 'All-in-one show with cream, pearls, and toy play.', rate: 650, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Multi-prop strip performance' },
-    { id: 'show-works-fruit', category: 'Strip Show', name: 'Works + Fruit', description: 'Full deluxe show with cream, fruit, pearls, and toys.', rate: 650, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Includes fruit play' },
-    { id: 'show-deluxe-works', category: 'Strip Show', name: 'Deluxe Works Show', description: 'Full strip with squirting, toys, and body play.', rate: 700, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Wet show + extras' },
-    { id: 'show-fisting-squirting', category: 'Strip Show', name: 'Fisting Squirting', description: 'Extreme adult show including fisting and squirting.', rate: 750, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Adults-only, explicit content' },
-    { id: 'show-works-greek', category: 'Strip Show', name: 'Works + Greek Show', description: 'Deluxe show plus full "Greek" toy play.', rate: 850, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Adults-only, includes anal toy' },
-    { id: 'show-absolute-works', category: 'Strip Show', name: 'The Absolute Works', description: 'Everything: toys, cream, pearls, squirt, Greek. Ultimate show.', rate: 1000, rate_type: 'flat', duration_minutes: 25, booking_notes: 'Premium full-service show' },
-    // Promotional & Hosting Services
-    { id: 'misc-promo-model', category: 'Promotional & Hosting', name: 'Promotional Model', description: 'Professional and engaging model for your product or brand.', rate: 100, rate_type: 'per_hour', min_duration_hours: 2 },
-    { id: 'misc-atmospheric', category: 'Promotional & Hosting', name: 'Atmospheric Entertainment', description: 'Adds to the ambiance of your event with grace and style.', rate: 90, rate_type: 'per_hour', min_duration_hours: 2 },
-    { id: 'misc-games-host', category: 'Promotional & Hosting', name: 'Game Hosting', description: 'Fun and interactive game hosting for parties.', rate: 120, rate_type: 'per_hour', min_duration_hours: 1 },
+export const WA_REGIONS = [
+  'Perth CBD & Inner',
+  'North Metro (Joondalup)',
+  'South Metro (Freo/Rocko)',
+  'East Metro (Swan Valley)',
+  'Mandurah & Peel',
+  'South West (Busselton/Marg River)',
+  'North West / Pilbara'
 ];
 
+export const allServices: Service[] = [
+    // Waitressing
+    { id: 'waitress-lingerie', category: 'Waitressing', name: 'Lingerie Waitress', description: 'Classy and flirty. Serving drinks in premium lingerie sets.', rate: 110, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Perfect for private catch-ups' },
+    { id: 'waitress-topless', category: 'Waitressing', name: 'Topless Waitress', description: 'Fun, cheeky service for any party vibe.', rate: 160, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Private events only' },
+    { id: 'waitress-nude', category: 'Waitressing', name: 'Nude Waitress', description: 'Bold and beautiful. Full nude service for the ultimate party.', rate: 260, rate_type: 'per_hour', min_duration_hours: 1, booking_notes: 'Full disclosure required' },
+    // Strip Shows
+    { id: 'show-hot-cream', category: 'Strip Show', name: 'Hot Cream Show', description: 'A cheeky strip ending with some whipped cream fun.', rate: 380, rate_type: 'flat', duration_minutes: 10, booking_notes: 'Messy but memorable' },
+    { id: 'show-pearl', category: 'Strip Show', name: 'Pearl Show', description: 'G-string strip with a classic finish.', rate: 500, rate_type: 'flat', duration_minutes: 15, booking_notes: 'Classic solo vibes' },
+    { id: 'show-toy', category: 'Strip Show', name: 'Toy Show', description: 'Full nude performance with high-end toy play.', rate: 550, rate_type: 'flat', duration_minutes: 15, booking_notes: 'Explicit performance' },
+    { id: 'show-pearls-vibe-cream', category: 'Strip Show', name: 'Pearls, Vibe + Cream', description: 'The triple threat: cream, pearls, and toys.', rate: 650, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Our most popular show' },
+    { id: 'show-works-fruit', category: 'Strip Show', name: 'Works + Fruit', description: 'A fresh twist on the deluxe show using fruit play.', rate: 650, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Sweet and spicy' },
+    { id: 'show-deluxe-works', category: 'Strip Show', name: 'Deluxe Works Show', description: 'The full wet show experience.', rate: 700, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Waterproof area recommended' },
+    { id: 'show-fisting-squirting', category: 'Strip Show', name: 'Fisting Squirting', description: 'Explicit adult show for a more adventurous crowd.', rate: 750, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Strictly 18+' },
+    { id: 'show-works-greek', category: 'Strip Show', name: 'Works + Greek Show', description: 'Deluxe show with added back-door toy play.', rate: 850, rate_type: 'flat', duration_minutes: 20, booking_notes: 'Premium adult content' },
+    { id: 'show-absolute-works', category: 'Strip Show', name: 'The Absolute Works', description: 'Everything on the menu. The ultimate performance.', rate: 1000, rate_type: 'flat', duration_minutes: 25, booking_notes: 'The big one' },
+    // Promotional & Hosting Services
+    { id: 'misc-promo-model', category: 'Promotional & Hosting', name: 'Promo Model', description: 'Engaging, professional models to rep your brand.', rate: 100, rate_type: 'per_hour', min_duration_hours: 2 },
+    { id: 'misc-atmospheric', category: 'Promotional & Hosting', name: 'Event Hosting', description: 'Classy hosts to welcome guests and set the mood.', rate: 90, rate_type: 'per_hour', min_duration_hours: 2 },
+    { id: 'misc-games-host', category: 'Promotional & Hosting', name: 'Game Hosting', description: 'Keeping the party alive with fun games and interaction.', rate: 120, rate_type: 'per_hour', min_duration_hours: 1 },
+];
 
 export const mockPerformers: Performer[] = [
   {
     id: 5,
     name: 'April Flavor',
-    tagline: 'Sweet, sassy, and always a delight.',
+    tagline: 'Sweet, sassy, and always ready to party.',
     photo_url: 'https://i.imgur.com/fJHc978.jpeg',
     gallery_urls: [
         'https://images.pexels.com/photos/1755385/pexels-photo-1755385.jpeg?auto=compress&cs=tinysrgb&w=800',
         'https://images.pexels.com/photos/1382731/pexels-photo-1382731.jpeg?auto=compress&cs=tinysrgb&w=800',
         'https://images.pexels.com/photos/1755390/pexels-photo-1755390.jpeg?auto=compress&cs=tinysrgb&w=800'
     ],
-    bio: 'April brings a fresh and exciting energy to every event. With a background in dance and modeling, she captivates audiences and ensures a memorable experience. She is perfect for high-energy parties and promotional events.',
+    bio: 'April is pure energy. With a background in dance and modeling, she knows exactly how to work a room. Whether it is a high-stakes corporate gig or a wild house party, she brings the vibes and keeps them high all night long.',
     service_ids: ['waitress-topless', 'show-hot-cream', 'show-pearl', 'show-deluxe-works', 'misc-promo-model'],
+    service_areas: ['Perth CBD & Inner', 'North Metro (Joondalup)', 'South Metro (Freo/Rocko)', 'East Metro (Swan Valley)'],
     status: 'available',
     created_at: new Date().toISOString(),
     phone: '+61400000005'
@@ -43,14 +53,15 @@ export const mockPerformers: Performer[] = [
   {
     id: 6,
     name: 'Anna Ivky',
-    tagline: 'Sophistication and a hint of mystery.',
+    tagline: 'High-end sophistication with a cheeky side.',
     photo_url: 'https://i.imgur.com/ece0iUZ.jpeg',
     gallery_urls: [
         'https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=800',
         'https://images.pexels.com/photos/2613260/pexels-photo-2613260.jpeg?auto=compress&cs=tinysrgb&w=800'
     ],
-    bio: 'Anna is the epitome of grace and professionalism. Her experience with exclusive, private events makes her the ideal choice for clients seeking a discreet yet impactful presence. Her poise and charm elevate any gathering.',
+    bio: 'Anna is all about the finer things. Shes refined, professional, and perfect for exclusive events where discretion is key. Shes a regular at Perths VIP parties and knows how to make every guest feel like a rockstar.',
     service_ids: ['waitress-lingerie', 'show-toy', 'show-works-greek', 'show-absolute-works'],
+    service_areas: ['Perth CBD & Inner', 'South Metro (Freo/Rocko)', 'Mandurah & Peel'],
     status: 'available',
     created_at: new Date().toISOString(),
     phone: '+61400000006'
@@ -58,51 +69,16 @@ export const mockPerformers: Performer[] = [
   {
     id: 1,
     name: 'Scarlett',
-    tagline: 'The life of the party, guaranteed.',
+    tagline: 'Guaranteed to be the life of your party.',
     photo_url: 'https://images.pexels.com/photos/1485031/pexels-photo-1485031.jpeg?auto=compress&cs=tinysrgb&w=800',
     gallery_urls: [],
-    bio: 'With over a decade of experience in corporate events and private parties, Scarlett knows exactly how to get the crowd going. Her vibrant personality and professional demeanor make her a favorite for any occasion.',
+    bio: 'Scarlett is a total pro. Shes been a favorite in the Perth scene for years because she knows exactly how to read the room. Shes vibrant, chatty, and always ready to make your night one to remember.',
     service_ids: ['waitress-topless', 'waitress-nude', 'show-hot-cream', 'misc-atmospheric'],
+    service_areas: ['Perth CBD & Inner', 'North Metro (Joondalup)', 'East Metro (Swan Valley)'],
     status: 'available',
     created_at: new Date().toISOString(),
     phone: '+61400000001'
-  },
-  {
-    id: 2,
-    name: 'Jasmine',
-    tagline: 'Elegance and charm for your special event.',
-    photo_url: 'https://images.pexels.com/photos/2418485/pexels-photo-2418485.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery_urls: ['https://images.pexels.com/photos/2811087/pexels-photo-2811087.jpeg?auto=compress&cs=tinysrgb&w=800'],
-    bio: 'Jasmine specializes in high-end events, bringing a touch of class and sophistication. Her background in theatre and performing arts ensures a captivating experience for all guests.',
-    service_ids: ['misc-promo-model', 'misc-atmospheric', 'waitress-lingerie'],
-    status: 'busy',
-    created_at: new Date().toISOString(),
-    phone: '+61400000002'
-  },
-  {
-    id: 3,
-    name: 'Amber',
-    tagline: 'Bringing warmth and energy to every room.',
-    photo_url: 'https://images.pexels.com/photos/3221164/pexels-photo-3221164.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery_urls: [],
-    bio: 'Amber’s infectious energy and friendly approach make her perfect for creating a relaxed and fun atmosphere. She excels at making guests feel comfortable and ensuring everyone has a memorable time.',
-    service_ids: ['waitress-topless', 'misc-games-host', 'show-pearl'],
-    status: 'available',
-    created_at: new Date().toISOString(),
-    phone: '+61400000003'
-  },
-  {
-    id: 4,
-    name: 'Chloe',
-    tagline: 'Professional, punctual, and always polished.',
-    photo_url: 'https://images.pexels.com/photos/1640229/pexels-photo-1640229.jpeg?auto=compress&cs=tinysrgb&w=800',
-    gallery_urls: [],
-    bio: 'Chloe prides herself on her professionalism and attention to detail. She seamlessly integrates into any event, providing top-tier service and ensuring everything runs smoothly from start to finish.',
-    service_ids: ['misc-promo-model', 'misc-atmospheric', 'waitress-lingerie'],
-    status: 'offline',
-    created_at: new Date().toISOString(),
-    phone: '+61400000004'
-  },
+  }
 ];
 
 export const mockBookings: Booking[] = [
@@ -115,9 +91,11 @@ export const mockBookings: Booking[] = [
         event_date: '2024-08-15',
         event_time: '19:00',
         event_address: '123 Fun Street, Perth WA',
-        event_type: 'Corporate Gala',
+        event_type: 'Bucks Night',
         status: 'confirmed',
         id_document_path: null,
+        // Fixed: added missing confirmation_document_path property
+        confirmation_document_path: null,
         deposit_receipt_path: null,
         created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         duration_hours: 4,
@@ -125,114 +103,23 @@ export const mockBookings: Booking[] = [
         services_requested: ['waitress-topless'],
         verified_by_admin_name: 'Admin Demo',
         verified_at: new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000).toISOString(),
-        client_message: 'Looking for a very energetic performance for a corporate crowd.',
+        client_message: 'Keep the energy high for the boys!',
         performer: { id: 1, name: 'Scarlett', phone: '+61400000001' },
         performer_eta_minutes: 25,
-    },
-    {
-        id: '9c5e3f5b-b9d1-4a2e-8c6f-7d1a2b3c4d5e',
-        performer_id: 2,
-        client_name: 'Jane Doe',
-        client_email: 'jane.d@email.com',
-        client_phone: '0487654321',
-        event_date: '2024-08-22',
-        event_time: '20:30',
-        event_address: '456 Party Ave, Fremantle WA',
-        event_type: 'Birthday Celebration',
-        status: 'pending_deposit_confirmation',
-        id_document_path: 'path/to/id.pdf',
-        deposit_receipt_path: 'path/to/receipt.jpg',
-        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        duration_hours: 3,
-        number_of_guests: 20,
-        services_requested: ['waitress-lingerie'],
-        verified_by_admin_name: null,
-        verified_at: null,
-        client_message: null,
-        performer: { id: 2, name: 'Jasmine', phone: '+61400000002' },
-        performer_eta_minutes: 30,
-    },
-    {
-        id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
-        performer_id: 5,
-        client_name: 'Laurina Sargeant',
-        client_email: 'laurina.s@example.com',
-        client_phone: '0422334455',
-        event_date: '2024-09-10',
-        event_time: '19:00',
-        event_address: '1 Posh Place, Dalkeith WA',
-        event_type: 'VIP Birthday Party',
-        status: 'pending_performer_acceptance',
-        id_document_path: 'path/to/another_id.jpg',
-        deposit_receipt_path: null,
-        created_at: new Date().toISOString(),
-        duration_hours: 3,
-        number_of_guests: 15,
-        services_requested: ['waitress-topless', 'show-hot-cream'],
-        verified_by_admin_name: null,
-        verified_at: null,
-        client_message: 'Please be discreet, this is a surprise party.',
-        performer: { id: 5, name: 'April Flavor', phone: '+61400000005' },
-        performer_eta_minutes: null,
-    },
-    {
-        id: 'd4c3b2a1-f6e5-0987-4321-fedcba098765',
-        performer_id: 3,
-        client_name: 'Emily White',
-        client_email: 'em.white@web.net',
-        client_phone: '0433445566',
-        event_date: '2024-08-18',
-        event_time: '17:00',
-        event_address: '101 Social Blvd, Joondalup WA',
-        event_type: 'Charity Fundraiser',
-        status: 'rejected',
-        id_document_path: 'path/to/id_emily.png',
-        deposit_receipt_path: null,
-        created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        duration_hours: 3,
-        number_of_guests: 100,
-        services_requested: ['misc-games-host'],
-        verified_by_admin_name: null,
-        verified_at: null,
-        client_message: null,
-        performer: { id: 3, name: 'Amber', phone: '+61400000003' },
-        performer_eta_minutes: null,
     }
 ];
 
 export const mockDoNotServeList: DoNotServeEntry[] = [
     {
         id: 'dns-1',
-        client_name: 'Aggressive Alex',
+        client_name: 'Problem Alex',
         client_email: 'alex.blocked@example.com',
         client_phone: '0400111222',
-        reason: 'Became aggressive and refused to follow event guidelines. Made performers uncomfortable.',
+        reason: 'Rude to talent and refused to follow simple house rules.',
         status: 'approved',
         submitted_by_performer_id: 1,
         created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
         performer: { name: 'Scarlett' }
-    },
-    {
-        id: 'dns-2',
-        client_name: 'Problematic Pete',
-        client_email: 'pete.problem@example.com',
-        client_phone: '0499888777',
-        reason: 'Attempted to solicit services outside of the agreed-upon contract during the event.',
-        status: 'pending',
-        submitted_by_performer_id: 2,
-        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        performer: { name: 'Jasmine' }
-    },
-     {
-        id: 'dns-3',
-        client_name: 'Difficult Dan',
-        client_email: 'dan.the.man@email.com',
-        client_phone: '0411222333',
-        reason: 'Constant disputes over payment and unreasonable demands.',
-        status: 'approved',
-        submitted_by_performer_id: 3,
-        created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        performer: { name: 'Amber' }
     }
 ];
 
@@ -241,26 +128,9 @@ export const mockCommunications: Communication[] = [
         id: 'comm-1',
         sender: 'System',
         recipient: 'admin',
-        message: 'Booking #bfa3e8a7 for John Smith was confirmed.',
+        message: 'Booking for John Smith is locked in.',
         created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         read: true,
         booking_id: 'bfa3e8a7-58d6-44b1-8798-294956e105b6'
-    },
-    {
-        id: 'comm-2',
-        sender: 'System',
-        recipient: 1,
-        message: 'Your booking with John Smith is confirmed! Details in your dashboard.',
-        created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        read: true,
-        booking_id: 'bfa3e8a7-58d6-44b1-8798-294956e105b6'
-    },
-    {
-        id: 'comm-3',
-        sender: 'Jasmine',
-        recipient: 'admin',
-        message: "New 'Do Not Serve' entry submitted for Problematic Pete.",
-        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        read: false,
     }
 ];

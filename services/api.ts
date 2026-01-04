@@ -125,7 +125,8 @@ export const api = {
   },
   
   // --- REGISTRATION ---
-  async registerPerformer(data: { email: string; password: string; name: string; tagline: string; bio: string; photo_url: string; service_ids: string[] }): Promise<{ success: boolean; error: any }> {
+  // Fix: Added service_areas to parameter type definition
+  async registerPerformer(data: { email: string; password: string; name: string; tagline: string; bio: string; photo_url: string; service_ids: string[]; service_areas: string[] }): Promise<{ success: boolean; error: any }> {
       if (isDemoMode) {
           await delay(1500);
           
@@ -133,6 +134,7 @@ export const api = {
           const newPerformerId = Math.max(...demoPerformers.map((p: Performer) => p.id)) + 1;
           
           // 2. Create Performer Entry
+          // Fix: Added missing service_areas property to satisfy Performer interface requirement
           const newPerformer: Performer = {
               id: newPerformerId,
               name: data.name,
@@ -141,6 +143,7 @@ export const api = {
               photo_url: data.photo_url || 'https://images.pexels.com/photos/1540406/pexels-photo-1540406.jpeg?auto=compress&cs=tinysrgb&w=800', // Default if empty
               gallery_urls: [],
               service_ids: data.service_ids,
+              service_areas: data.service_areas,
               status: 'pending', // Default to pending for review
               created_at: new Date().toISOString(),
               phone: '+61400000000' // Default dummy phone for registration
@@ -169,6 +172,7 @@ export const api = {
       if (!authData.user) return { success: false, error: { message: "Auth failed" } };
 
       // 2. Insert Performer Data
+      // Fix: Added missing service_areas field to Supabase insertion
       const { data: performerData, error: performerError } = await supabase
           .from('performers')
           .insert({
@@ -178,6 +182,7 @@ export const api = {
               photo_url: data.photo_url,
               gallery_urls: [],
               service_ids: data.service_ids,
+              service_areas: data.service_areas,
               status: 'pending' // Default to pending
           })
           .select()
@@ -438,6 +443,7 @@ export const api = {
             duration_hours: Number(formState.duration),
             services_requested: formState.selectedServices,
             id_document_path: formState.idDocument ? `demo/id-${Date.now()}-${formState.idDocument.name}` : null,
+            confirmation_document_path: formState.confirmationDocument ? `demo/confirm-${Date.now()}-${formState.confirmationDocument.name}` : null,
             deposit_receipt_path: null,
             created_at: new Date().toISOString(),
             verified_by_admin_name: null,
@@ -479,7 +485,7 @@ export const api = {
 
     const initialStatus: BookingStatus = isBlocked ? 'rejected' : 'pending_performer_acceptance';
 
-    // 2. File Upload
+    // 2. File Upload (ID Document)
     let idDocumentPath: string | null = null;
     if (formState.idDocument) {
       const file = formState.idDocument;
@@ -488,7 +494,7 @@ export const api = {
       const filePath = `id-documents/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('documents') // Assuming a bucket named 'documents'
+        .from('documents') 
         .upload(filePath, file);
 
       if (uploadError) {
@@ -497,7 +503,25 @@ export const api = {
       idDocumentPath = filePath;
     }
 
-    // 3. Prepare booking data
+    // 3. File Upload (Confirmation Document)
+    let confirmationDocumentPath: string | null = null;
+    if (formState.confirmationDocument) {
+        const file = formState.confirmationDocument;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `confirmation-documents/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('documents') 
+          .upload(filePath, file);
+
+        if (uploadError) {
+          return { data: null, error: { message: `Failed to upload confirmation document: ${uploadError.message}` } };
+        }
+        confirmationDocumentPath = filePath;
+    }
+
+    // 4. Prepare booking data
     const newBookingsData: Omit<Booking, 'id' | 'created_at' | 'performer' | 'verified_by_admin_name' | 'verified_at' | 'deposit_receipt_path' | 'performer_reassigned_from_id' | 'performer_eta_minutes' | 'referral_fee_amount' | 'referral_fee_paid' | 'referral_fee_receipt_path'>[] = requestedPerformers.map(p => ({
         performer_id: p.id,
         client_name: formState.fullName,
@@ -513,9 +537,10 @@ export const api = {
         duration_hours: Number(formState.duration),
         services_requested: formState.selectedServices,
         id_document_path: idDocumentPath,
+        confirmation_document_path: confirmationDocumentPath,
     }));
 
-    // 4. Insert bookings
+    // 5. Insert bookings
     const { data, error } = await supabase
       .from('bookings')
       .insert(newBookingsData)
