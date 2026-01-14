@@ -38,6 +38,8 @@ export interface Performer {
   status: PerformerStatus;
   created_at: string;
   phone: string; // Added for WhatsApp notifications
+  featured?: boolean; // Highlighted on home page
+  rating?: number; // 1-5 scale
 }
 
 export interface Booking {

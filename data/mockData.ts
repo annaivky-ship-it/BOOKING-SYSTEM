@@ -48,7 +48,9 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth CBD & Inner', 'North Metro (Joondalup)', 'South Metro (Freo/Rocko)', 'East Metro (Swan Valley)'],
     status: 'available',
     created_at: new Date().toISOString(),
-    phone: '+61400000005'
+    phone: '+61400000005',
+    featured: true,
+    rating: 5
   },
   {
     id: 6,
@@ -64,7 +66,9 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth CBD & Inner', 'South Metro (Freo/Rocko)', 'Mandurah & Peel'],
     status: 'available',
     created_at: new Date().toISOString(),
-    phone: '+61400000006'
+    phone: '+61400000006',
+    featured: true,
+    rating: 5
   },
   {
     id: 1,
@@ -77,7 +81,9 @@ export const mockPerformers: Performer[] = [
     service_areas: ['Perth CBD & Inner', 'North Metro (Joondalup)', 'East Metro (Swan Valley)'],
     status: 'available',
     created_at: new Date().toISOString(),
-    phone: '+61400000001'
+    phone: '+61400000001',
+    featured: true,
+    rating: 4.9
   }
 ];
 

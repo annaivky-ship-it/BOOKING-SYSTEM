@@ -64,16 +64,14 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
           
           <a href="/" className="flex flex-col items-start cursor-pointer no-underline group transition-transform hover:scale-[1.02] flex-shrink-0">
             <div className="flex items-center">
-                <span className="font-logo-main text-2xl md:text-3xl tracking-wider text-white">FLAV</span>
-                <span className="text-2xl md:text-3xl mx-[-0.15em] relative transform group-hover:scale-125 transition-transform duration-500" style={{top: "-0.05em"}}>🍑</span>
-                <span className="font-logo-main text-2xl md:text-3xl tracking-wider text-white">R</span>
+                <span className="font-logo-main text-2xl md:text-3xl tracking-wider text-white">FLAVOR</span>
             </div>
           </a>
 
           <div className="flex items-center gap-3">
             {userProfile?.role === 'admin' && (
                 <button onClick={() => onNavigate('admin_dashboard')} className="hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-orange-500 text-white shadow-lg shadow-orange-500/20">
-                    <Shield size={14}/> HUB
+                    <Shield size={14}/> AGENCY HUB
                 </button>
             )}
             
@@ -87,15 +85,15 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
                 {isNotifOpen && (
                     <div className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl z-50 animate-fade-in overflow-hidden">
                        <div className="p-4 border-b border-white/5 bg-zinc-950/50 flex justify-between items-center">
-                         <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Inbox</h3>
-                         {unreadCount === 0 && <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Up to date</span>}
+                         <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Notifications</h3>
+                         {unreadCount === 0 && <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">All caught up</span>}
                        </div>
                        <div className="max-h-96 overflow-y-auto custom-scrollbar">
                          {relevantCommunications.length > 0 ? (
                             relevantCommunications.map(comm => (
                                 <div key={comm.id} className={`p-4 border-b border-white/5 ${comm.read ? 'opacity-40' : 'bg-orange-500/5'}`}>
                                     <p className="text-xs text-zinc-300 font-medium">{comm.message}</p>
-                                    <p className="text-[9px] text-zinc-600 mt-2 font-black uppercase tracking-widest">{new Date(comm.created_at).toLocaleTimeString()}</p>
+                                    <p className="text-[9px] text-zinc-600 mt-2 font-black uppercase tracking-widest">{new Date(comm.created_at).toLocaleTimeString('en-AU')}</p>
                                 </div>
                             ))
                          ) : (
@@ -121,7 +119,7 @@ const Header: React.FC<HeaderProps> = ({ children, view, onNavigate, userProfile
                 onClick={onSignInClick}
                 className="bg-white/5 hover:bg-white/10 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all"
               >
-                Staff Portal
+                PRO PORTAL
               </button>
             )}
           </div>

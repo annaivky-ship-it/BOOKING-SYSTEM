@@ -37,7 +37,7 @@ const App: React.FC = () => {
   const [viewedPerformer, setViewedPerformer] = useState<Performer | null>(null);
   const [selectedForBooking, setSelectedForBooking] = useState<Performer[]>([]);
   const [viewRole, setViewRole] = useState<Role>('user');
-  const [bookingPreferAsap, setBookingPreferAsap] = useState(true); // Default to ASAP
+  const [bookingPreferAsap, setBookingPreferAsap] = useState(true);
   
   const [performers, setPerformers] = useState<Performer[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -57,15 +57,14 @@ const App: React.FC = () => {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
-  
   const [isAutoVetEnabled, setIsAutoVetEnabled] = useState(true);
 
   useEffect(() => {
     const fetchSession = async () => {
         const { data: { session }, error } = await api.getSession();
         if (error) {
-            console.error('Error fetching session:', error);
-            setError('Could not connect to authentication service.');
+            console.error('Session retrieval error:', error);
+            setError('System authentication unavailable.');
         } else {
             setSession(session);
         }
@@ -85,7 +84,7 @@ const App: React.FC = () => {
       setIsLoading(true);
       api.getProfile(session.user).then(({ data, error }) => {
         if (error) {
-          setError("Could not fetch user profile.");
+          setError("Profile data currently inaccessible.");
           console.error(error);
         } else {
           setUserProfile(data);
@@ -155,7 +154,7 @@ const App: React.FC = () => {
         if (error) throw error;
         setCommunications(prev => prev.map(c => c.id === tempId ? data![0] : c));
     } catch (err) {
-        console.error("Failed to add communication:", err);
+        console.error("Communication failure:", err);
         setCommunications(prev => prev.filter(c => c.id !== tempId));
     }
   }, [notificationSettings]);
@@ -165,19 +164,19 @@ const App: React.FC = () => {
     setError(null);
     try {
       const { performers, bookings, doNotServeList, communications } = await api.getInitialData();
-      if (performers.error) throw new Error(`Performers: ${performers.error.message}`);
+      if (performers.error) throw new Error(`Agency Error: ${performers.error.message}`);
       setPerformers(performers.data as Performer[] || []);
       if(performers.data && performers.data.length > 0 && !currentPerformerIdForAdmin){
           setCurrentPerformerIdForAdmin(performers.data[0].id);
       }
-      if (bookings.error) throw new Error(`Bookings: ${bookings.error.message}`);
+      if (bookings.error) throw new Error(`Booking Data Error: ${bookings.error.message}`);
       setBookings(bookings.data as Booking[] || []);
-      if (doNotServeList.error) throw new Error(`DNS List: ${doNotServeList.error.message}`);
+      if (doNotServeList.error) throw new Error(`Safety List Error: ${doNotServeList.error.message}`);
       setDoNotServeList(doNotServeList.data as DoNotServeEntry[] || []);
-      if (communications.error) throw new Error(`Communications: ${communications.error.message}`);
+      if (communications.error) throw new Error(`Message Registry Error: ${communications.error.message}`);
       setCommunications(communications.data as Communication[] || []);
     } catch (err: any) {
-      setError(`Failed to fetch data: ${err.message}.`);
+      setError(`Operational data retrieval failed: ${err.message}.`);
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -209,17 +208,17 @@ const App: React.FC = () => {
   }
 
   const handlePerformerStatusChange = async (performerId: number, status: PerformerStatus) => {
-    const performerName = performers.find(p => p.id === performerId)?.name || 'A performer';
+    const performerName = performers.find(p => p.id === performerId)?.name || 'Performer';
     const originalPerformers = performers;
     setPerformers(prev => prev.map(p => p.id === performerId ? { ...p, status } : p));
     try {
         const { error } = await api.updatePerformerStatus(performerId, status);
         if (error) throw error;
-        addCommunication({ sender: 'System', recipient: 'admin', message: `${performerName}'s status changed to ${status}.`, type: 'admin_message' });
+        addCommunication({ sender: 'System', recipient: 'admin', message: `Status Update: ${performerName} is now ${status}.`, type: 'admin_message' });
     } catch (err) {
-        console.error("Failed to update status:", err);
+        console.error("Status update error:", err);
         setPerformers(originalPerformers); 
-        setError("Could not update status.");
+        setError("Status update failed.");
     }
   };
 
@@ -229,11 +228,11 @@ const App: React.FC = () => {
           if (error) throw error;
           if (newPerformers) {
               setPerformers(prev => [...newPerformers, ...prev]);
-              addCommunication({ sender: 'System', recipient: 'admin', message: `Talent Created: ${data.name} has been added to the roster.`, type: 'admin_message' });
+              addCommunication({ sender: 'System', recipient: 'admin', message: `Profile Activated: ${data.name} added to roster.`, type: 'admin_message' });
           }
       } catch (err) {
-          console.error("Create performer failed:", err);
-          setError("Failed to add talent profile.");
+          console.error("Profile initialisation error:", err);
+          setError("Failed to initialise profile.");
       }
   };
 
@@ -243,11 +242,11 @@ const App: React.FC = () => {
           if (error) throw error;
           if (updatedPerformers) {
               setPerformers(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-              addCommunication({ sender: 'System', recipient: 'admin', message: `Talent Updated: ${updates.name || 'Profile'} has been modified.`, type: 'admin_message' });
+              addCommunication({ sender: 'System', recipient: 'admin', message: `Profile Update: ${updates.name || 'Professional'} profile modified.`, type: 'admin_message' });
           }
       } catch (err) {
-          console.error("Update performer failed:", err);
-          setError("Failed to update talent profile.");
+          console.error("Profile update error:", err);
+          setError("Failed to update roster record.");
       }
   };
 
@@ -256,10 +255,10 @@ const App: React.FC = () => {
           const { success, error } = await api.deletePerformer(id);
           if (error || !success) throw error;
           setPerformers(prev => prev.filter(p => p.id !== id));
-          addCommunication({ sender: 'System', recipient: 'admin', message: `Talent Deleted: Performer ID #${id} removed.`, type: 'admin_message' });
+          addCommunication({ sender: 'System', recipient: 'admin', message: `Profile Deactivated: Performer ID #${id} removed.`, type: 'admin_message' });
       } catch (err) {
-          console.error("Delete performer failed:", err);
-          setError("Failed to delete talent profile.");
+          console.error("Profile removal error:", err);
+          setError("Failed to remove profile.");
       }
   };
   
@@ -270,7 +269,7 @@ const App: React.FC = () => {
 
     let updatedBookingData: Partial<Booking> = { status };
     if (status === 'confirmed') {
-        updatedBookingData = { ...updatedBookingData, verified_by_admin_name: 'Admin', verified_at: new Date().toISOString() };
+        updatedBookingData = { ...updatedBookingData, verified_by_admin_name: 'Agency Review', verified_at: new Date().toISOString() };
     }
     const updatedBookings = originalBookings.map(b => b.id === bookingId ? { ...b, ...updatedBookingData } : b);
     setBookings(updatedBookings);
@@ -282,32 +281,32 @@ const App: React.FC = () => {
       const finalBalance = totalCost - depositAmount;
       if (status !== 'confirmed') {
         const clientMessage = {
-          deposit_pending: `✅ Request Approved! Your booking for ${booking.event_type} with ${booking.performer?.name} is ready. Please pay the deposit to confirm.`,
-          pending_deposit_confirmation: `🧾 Payment Received! We've got your receipt. We will confirm your booking shortly.`,
-          rejected: `❗️ Request Declined. We are unable to take your booking for ${booking.event_type} right now.`,
+          deposit_pending: `Confirmation: Booking for ${booking.performer?.name} cleared. Secure your date via deposit.`,
+          pending_deposit_confirmation: `Notice: Payment received. Final verification in progress.`,
+          rejected: `Notice: Request declined. The requested time for ${booking.event_type} is currently unavailable.`,
         }[status as 'deposit_pending' | 'pending_deposit_confirmation' | 'rejected'];
         if (clientMessage) addCommunication({ sender: 'System', recipient: 'user', message: clientMessage, booking_id: bookingId, type: 'booking_update' });
       }
       if (status === 'confirmed') {
-        addCommunication({ sender: 'System', recipient: 'user', message: `🎉 All Set! Your booking with ${booking.performer?.name} is confirmed. Balance of $${finalBalance.toFixed(2)} due on arrival. Date: ${new Date(booking.event_date).toLocaleDateString()}.`, booking_id: bookingId, type: 'booking_confirmation' });
-        addCommunication({ sender: 'System', recipient: booking.performer_id, message: `🎉 BOOKING CONFIRMED: Deposit paid for ${booking.client_name} on ${new Date(booking.event_date).toLocaleDateString()}. Location: ${booking.event_address}. Phone: ${booking.client_phone}.`, booking_id: bookingId, type: 'booking_confirmation' });
+        addCommunication({ sender: 'System', recipient: 'user', message: `Confirmed! Your booking with ${booking.performer?.name} is locked in. Balance of $${finalBalance.toFixed(2)} due upon arrival. Date: ${new Date(booking.event_date).toLocaleDateString('en-AU')}.`, booking_id: bookingId, type: 'booking_confirmation' });
+        addCommunication({ sender: 'System', recipient: booking.performer_id, message: `Booking Confirmed: Security deposit received for ${new Date(booking.event_date).toLocaleDateString('en-AU')}. Location: ${booking.event_address}. Contact: ${booking.client_phone}.`, booking_id: bookingId, type: 'booking_confirmation' });
       } else {
         const performerMessage = {
-            deposit_pending: `✅ Request Checked: The request from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString()} is waiting for payment.`,
-            rejected: `❗️ Request Cancelled: The request from ${booking.client_name} has been declined.`,
+            deposit_pending: `New Lead: Engagement from ${booking.client_name} for ${new Date(booking.event_date).toLocaleDateString('en-AU')} awaiting deposit.`,
+            rejected: `Status Update: Inquiry from ${booking.client_name} declined or expired.`,
         }[status as 'deposit_pending' | 'rejected'];
         if(performerMessage) addCommunication({ sender: 'System', recipient: booking.performer_id, message: performerMessage, booking_id: bookingId, type: 'booking_update' });
       }
       const adminMessage = {
-          pending_deposit_confirmation: `🧾 Payment Check: Booking #${bookingId.slice(0, 8)} (${booking.client_name}) sent a receipt.`,
-          confirmed: `✅ Booking Confirmed: ${booking.client_name} and ${booking.performer?.name}.`,
-          rejected: `❌ Booking Declined: ${booking.client_name} and ${booking.performer?.name}.`,
+          pending_deposit_confirmation: `Payment Alert: Remittance uploaded for Booking #${bookingId.slice(0, 8)} (${booking.client_name}).`,
+          confirmed: `Success: Booking secured for ${booking.client_name} and ${booking.performer?.name}.`,
+          rejected: `Update: Request for ${booking.client_name} terminated.`,
       }[status];
       if (adminMessage) addCommunication({ sender: 'System', recipient: 'admin', message: adminMessage, booking_id: bookingId, type: 'admin_message' });
     } catch (err) {
-        console.error("Failed to update booking:", err);
+        console.error("Booking status update failure:", err);
         setBookings(originalBookings);
-        setError("Could not update booking status.");
+        setError("Update failed.");
     }
   };
 
@@ -322,9 +321,9 @@ const App: React.FC = () => {
         const { error } = await api.updateBookingStatus(bookingId, booking.status, updates);
         if (error) throw error;
     } catch (err) {
-        console.error("Failed to update booking details:", err);
+        console.error("Detail update failure:", err);
         setBookings(originalBookings);
-        setError("Could not update booking.");
+        setError("Detail update failed.");
     }
   };
   
@@ -332,19 +331,20 @@ const App: React.FC = () => {
       const entry = doNotServeList.find(e => e.id === entryId);
       if(!entry) return;
       const originalList = doNotServeList;
+      // Fixed: setDoNotServeList should be used instead of setBookings to avoid type mismatch
       setDoNotServeList(prev => prev.map(e => e.id === entryId ? { ...e, status } : e));
       try {
         const { error } = await api.updateDoNotServeStatus(entryId, status);
         if (error) throw error;
-        const message = `Safety List update: '${entry.client_name}' by ${entry.performer?.name} is now ${status}.`;
+        const message = `Safety List Update: Entry '${entry.client_name}' changed to ${status}.`;
         addCommunication({ sender: 'System', recipient: 'admin', message, type: 'admin_message' });
         if (entry.submitted_by_performer_id !== 0) {
            addCommunication({ sender: 'System', recipient: entry.submitted_by_performer_id, message, type: 'admin_message' });
         }
       } catch (err) {
-        console.error("Failed to update DNS entry:", err);
+        console.error("Safety registry update failure:", err);
         setDoNotServeList(originalList);
-        setError("Could not update safety list.");
+        setError("Safety list update failed.");
       }
   }
 
@@ -353,10 +353,10 @@ const App: React.FC = () => {
         const { data, error } = await api.createDoNotServeEntry(newEntryData);
         if (error) throw error;
         setDoNotServeList(prev => [data![0], ...prev]);
-        addCommunication({ sender: submitterName, recipient: 'admin', message: `Safety Alert: Submission from ${submitterName} against "${newEntryData.client_name}".`, type: 'admin_message' })
+        addCommunication({ sender: submitterName, recipient: 'admin', message: `Safety Alert: New entry for "${newEntryData.client_name}" submitted for review.`, type: 'admin_message' })
       } catch(err) {
-          console.error("Failed to create DNS entry:", err);
-          setError("Could not submit safety report.");
+          console.error("Safety list submission failure:", err);
+          setError("Failed to submit safety entry.");
       }
   };
 
@@ -364,12 +364,12 @@ const App: React.FC = () => {
       const booking = bookings.find(b => b.id === bookingId);
       if(!booking) return;
       
-      const performerName = booking.performer?.name || 'Talent';
+      const performerName = booking.performer?.name || 'Performer';
       
       if (decision === 'declined') {
         await handleUpdateBookingStatus(bookingId, 'rejected');
-        addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} DECLINED the request from ${booking.client_name}.`, type: 'admin_message' });
-        addCommunication({ sender: 'System', recipient: 'user', message: `We're sorry, ${performerName} is not available for this booking.`, booking_id: booking.id, type: 'booking_update' });
+        addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} declined the inquiry from ${booking.client_name}.`, type: 'admin_message' });
+        addCommunication({ sender: 'System', recipient: 'user', message: `Update: ${performerName} is unavailable for your requested time.`, booking_id: booking.id, type: 'booking_update' });
         return;
       }
 
@@ -387,7 +387,7 @@ const App: React.FC = () => {
       
       const updateData: Partial<Booking> = { 
           status: newStatus,
-          verified_by_admin_name: shouldSkipManualVetting ? 'System (Automated Vetting)' : null,
+          verified_by_admin_name: shouldSkipManualVetting ? 'Verified Client Protocol' : null,
           verified_at: shouldSkipManualVetting ? new Date().toISOString() : null
       };
       
@@ -400,30 +400,30 @@ const App: React.FC = () => {
         const { error } = await api.updateBookingStatus(bookingId, newStatus, updateData);
         if (error) throw error;
         
-        const etaMessagePartAdmin = eta && eta > 0 ? ` with an ETA of ${eta} mins` : '';
-        const etaMessagePartUser = eta && eta > 0 ? ` ETA is about ${eta} minutes.` : '';
+        const etaMessagePartAdmin = eta && eta > 0 ? ` with a projected arrival of ${eta} mins` : '';
+        const etaMessagePartUser = eta && eta > 0 ? ` Estimated arrival window: approximately ${eta} minutes.` : '';
         
         if (shouldSkipManualVetting) {
-          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} ACCEPTED ${booking.client_name}${etaMessagePartAdmin}. System Auto-Cleared via DNS check.`, type: 'admin_message' });
-          addCommunication({ sender: 'System', recipient: 'user', message: `✅ Request Cleared! ${performerName} has accepted.${etaMessagePartUser} Please pay the deposit to lock it in.`, booking_id: booking.id, type: 'booking_update' });
+          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} accepted ${booking.client_name}${etaMessagePartAdmin}. Verified protocol active.`, type: 'admin_message' });
+          addCommunication({ sender: 'System', recipient: 'user', message: `Great news! Your request is approved. ${performerName} is available.${etaMessagePartUser} Pay deposit to confirm.`, booking_id: booking.id, type: 'booking_update' });
         } else {
           if (isBlocked) {
-              addCommunication({ sender: 'System', recipient: 'admin', message: `⚠️ WARNING: ${performerName} accepted ${booking.client_name}, but client matches DNS LIST. Holding for review.`, type: 'system_alert' });
+              addCommunication({ sender: 'System', recipient: 'admin', message: `SAFETY ALERT: ${performerName} accepted ${booking.client_name}, but a safety match was detected. Held for review.`, type: 'system_alert' });
           }
-          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} ACCEPTED ${booking.client_name}${etaMessagePartAdmin}. Manual review required.`, type: 'admin_message' });
-          addCommunication({ sender: 'System', recipient: 'user', message: `${performerName} has accepted!${etaMessagePartUser} Our team is now doing a quick final check.`, booking_id: booking.id, type: 'booking_update' });
+          addCommunication({ sender: performerName, recipient: 'admin', message: `${performerName} accepted ${booking.client_name}${etaMessagePartAdmin}. Awaiting agency review.`, type: 'admin_message' });
+          addCommunication({ sender: 'System', recipient: 'user', message: `Update: ${performerName} is available. Our agency is performing a final discretion check.`, booking_id: booking.id, type: 'booking_update' });
         }
       } catch (err) {
-          console.error("Failed performer decision update:", err);
+          console.error("Decision processing failure:", err);
           setBookings(originalBookings);
-          setError("Failed to process decision.");
+          setError("Booking decision processing failed.");
       }
   };
   
   const handleAdminBookingDecisionForPerformer = async (bookingId: string, decision: 'accepted' | 'declined') => {
       const booking = bookings.find(b => b.id === bookingId);
       if(!booking) return;
-      addCommunication({ sender: 'Admin', recipient: booking.performer_id, message: `Admin has marked the request from ${booking.client_name} as ${decision}.`, type: 'booking_update' });
+      addCommunication({ sender: 'Admin', recipient: booking.performer_id, message: `Agency Notice: The booking for ${booking.client_name} was marked as ${decision}.`, type: 'booking_update' });
       await handlePerformerBookingDecision(bookingId, decision, undefined);
   }
 
@@ -432,21 +432,21 @@ const App: React.FC = () => {
     const newPerformer = performers.find(p => p.id === newPerformerId);
     if (!booking || !newPerformer) return;
     const oldPerformerId = booking.performer_id;
-    const oldPerformerName = booking.performer?.name || 'Previous Talent';
+    const oldPerformerName = booking.performer?.name || 'Previous Performer';
     const updates: Partial<Booking> = { performer_id: newPerformerId, status: 'pending_performer_acceptance', performer_reassigned_from_id: oldPerformerId };
     const originalBookings = bookings;
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, ...updates, performer: { id: newPerformerId, name: newPerformer.name } } : b));
     try {
         const { error } = await api.updateBookingStatus(bookingId, 'pending_performer_acceptance', updates);
         if(error) throw error;
-        addCommunication({ sender: 'Admin', recipient: 'admin', message: `Booking for ${booking.client_name} moved from ${oldPerformerName} to ${newPerformer.name}.`, type: 'admin_message' });
-        addCommunication({ sender: 'Admin', recipient: 'user', message: `Update: ${newPerformer.name} is now assigned to your booking. Waiting for their confirmation.`, booking_id: booking.id, type: 'booking_update' });
-        addCommunication({ sender: 'Admin', recipient: oldPerformerId, message: `Update: Your booking for ${booking.client_name} has been moved to another professional.`, booking_id: booking.id, type: 'booking_update' });
-        addCommunication({ sender: 'Admin', recipient: newPerformerId, message: `New Booking: ${booking.client_name}. Please check and accept in your dashboard.`, booking_id: booking.id, type: 'booking_update' });
+        addCommunication({ sender: 'Admin', recipient: 'admin', message: `Update: Booking for ${booking.client_name} reassigned from ${oldPerformerName} to ${newPerformer.name}.`, type: 'admin_message' });
+        addCommunication({ sender: 'Admin', recipient: 'user', message: `Agency Notice: ${newPerformer.name} is now assigned to your request. Waiting for confirmation.`, booking_id: booking.id, type: 'booking_update' });
+        addCommunication({ sender: 'Admin', recipient: oldPerformerId, message: `Update: Your booking for ${booking.client_name} has been reassigned.`, booking_id: booking.id, type: 'booking_update' });
+        addCommunication({ sender: 'Admin', recipient: newPerformerId, message: `New Request: Inbound inquiry for ${booking.client_name}. Confirm availability in your portal.`, booking_id: booking.id, type: 'booking_update' });
     } catch (err) {
-        console.error("Failed to reassign performer:", err);
+        console.error("Reassignment failure:", err);
         setBookings(originalBookings);
-        setError("Could not move booking.");
+        setError("Reassignment failed.");
     }
   };
   
@@ -459,11 +459,11 @@ const App: React.FC = () => {
     try {
         const { error } = await api.updateReferralFeeStatus(bookingId, feeAmount, receiptPath);
         if (error) throw error;
-        addCommunication({ sender: booking.performer?.name || 'Talent', recipient: 'admin', message: `${booking.performer?.name} paid the agency fee for ${booking.client_name}.`, booking_id: bookingId, type: 'admin_message' });
+        addCommunication({ sender: booking.performer?.name || 'Professional', recipient: 'admin', message: `Agency Notice: ${booking.performer?.name} settled the referral fee for ${booking.client_name}.`, booking_id: bookingId, type: 'admin_message' });
     } catch(err) {
-        console.error("Failed to update referral fee status:", err);
+        console.error("Referral fee update failure:", err);
         setBookings(originalBookings);
-        setError("Payment submission failed.");
+        setError("Remittance submission failed.");
     }
   };
 
@@ -474,15 +474,15 @@ const App: React.FC = () => {
         setBookings(prev => [...newBookings!, ...prev]);
         const firstBooking = newBookings![0];
         if (firstBooking.status === 'rejected') {
-             addCommunication({ sender: 'System', recipient: 'admin', message: `🚫 BLOCKED: ${formState.fullName} is on the safety list.`, type: 'system_alert' });
-             addCommunication({ sender: 'System', recipient: 'user', message: `Request Declined.`, booking_id: firstBooking.id, type: 'booking_update' });
+             addCommunication({ sender: 'System', recipient: 'admin', message: `SECURITY ALERT: Request from ${formState.fullName} blocked due to safety match.`, type: 'system_alert' });
+             addCommunication({ sender: 'System', recipient: 'user', message: `Notice: Internal safety protocols prevent us from fulfilling this request.`, booking_id: firstBooking.id, type: 'booking_update' });
         } else {
-             addCommunication({ sender: 'System', recipient: 'user', message: `🎉 Request Sent! We've notified ${newBookings!.map(b=>b.performer?.name).join(', ')}.`, booking_id: firstBooking.id, type: 'booking_update' });
-             addCommunication({ sender: 'System', recipient: 'admin', message: `📥 New Request: for ${formState.fullName} with ${newBookings!.map(b=>b.performer?.name).join(', ')}.`, type: 'admin_message' });
+             addCommunication({ sender: 'System', recipient: 'user', message: `Success: Inquiry transmitted to ${newBookings!.map(b=>b.performer?.name).join(', ')}.`, booking_id: firstBooking.id, type: 'booking_update' });
+             addCommunication({ sender: 'System', recipient: 'admin', message: `New Inquiry: Inbound request received from ${formState.fullName}.`, type: 'admin_message' });
         }
-        return { success: true, message: 'Request sent', bookingIds: newBookings!.map(b => b.id) };
+        return { success: true, message: 'Request Transmitted', bookingIds: newBookings!.map(b => b.id) };
     } catch(err: any) {
-        return { success: false, message: err.message || 'Error sending request.' };
+        return { success: false, message: err.message || 'Request transmission failed.' };
     }
   };
 
@@ -537,7 +537,7 @@ const App: React.FC = () => {
   const handleReturnToGallery = () => { setViewedPerformer(null); setSelectedForBooking([]); setView(bookingOrigin); };
   const handleContactSubmit = async (data: ContactFormData) => {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    await addCommunication({ sender: data.name, recipient: 'admin', message: `[Contact] Subject: ${data.subject}\n\n${data.message}\n\nFrom: ${data.email}`, type: 'system_alert' });
+    await addCommunication({ sender: data.name, recipient: 'admin', message: `Support [${data.subject}]: ${data.message}`, type: 'system_alert' });
   };
 
   const handleSearchChange = (query: string) => {
@@ -548,21 +548,21 @@ const App: React.FC = () => {
   };
 
   if (isAuthLoading) {
-     return <div className="fixed inset-0 bg-zinc-900 flex flex-col items-center justify-center text-zinc-400"><LoaderCircle className="w-16 h-16 animate-spin text-orange-500 mb-4" /><h2 className="text-xl font-semibold text-zinc-200">Connecting...</h2></div>
+     return <div className="fixed inset-0 bg-zinc-900 flex flex-col items-center justify-center text-zinc-400"><LoaderCircle className="w-16 h-16 animate-spin text-orange-500 mb-4" /><h2 className="text-xl font-semibold text-zinc-200">Securing Connection...</h2></div>
   }
   if (!ageVerified) return <AgeGate onVerified={handleAgeVerified} onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTermsOfService={handleShowTermsOfService} />;
 
   const renderContent = () => {
     if (isLoading && !['auth', 'performer_registration'].includes(view)) {
-       return <div className="flex flex-col items-center justify-center p-12 text-zinc-400"><LoaderCircle className="w-16 h-16 animate-spin text-orange-500 mb-4" /><h2 className="text-xl font-semibold text-zinc-200">Loading...</h2><p>Please wait.</p></div>;
+       return <div className="flex flex-col items-center justify-center p-12 text-zinc-400"><LoaderCircle className="w-16 h-16 animate-spin text-orange-500 mb-4" /><h2 className="text-xl font-semibold text-zinc-200">Synchronising Roster...</h2></div>;
     }
-    if (error) return <div className="text-center p-8 bg-red-900/50 border border-red-500 rounded-lg text-white max-w-4xl mx-auto"><h2 className="text-xl font-bold">Error</h2><p className="mt-2 text-red-200">{error}</p></div>;
+    if (error) return <div className="text-center p-8 bg-red-900/50 border border-red-500 rounded-lg text-white max-w-4xl mx-auto"><h2 className="text-xl font-bold">Inquiry Alert</h2><p className="mt-2 text-red-200">{error}</p></div>;
 
     switch (view) {
       case 'auth': return <Auth onBack={() => setView('available_now')} onRegisterClick={() => setView('performer_registration')} />;
       case 'performer_registration':
         if (registrationSuccess) {
-            return <div className="min-h-[60vh] flex flex-col items-center justify-center text-center animate-fade-in"><div className="bg-zinc-900/80 p-10 rounded-2xl border border-zinc-700 max-w-lg"><div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6"><CalendarCheck className="h-10 w-10 text-green-500" /></div><h2 className="text-3xl font-bold text-white mb-4">Request Sent!</h2><p className="text-zinc-400 mb-8">Your application is in. Our team will review your profile shortly.</p><button onClick={() => { setRegistrationSuccess(false); setView('auth'); }} className="btn-primary px-8 py-3">Sign In</button></div></div>;
+            return <div className="min-h-[60vh] flex flex-col items-center justify-center text-center animate-fade-in"><div className="bg-zinc-900/80 p-10 rounded-2xl border border-zinc-700 max-w-lg"><div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6"><CalendarCheck className="h-10 w-10 text-green-500" /></div><h2 className="text-3xl font-bold text-white mb-4">Application Sent</h2><p className="text-zinc-400 mb-8">Your profile is currently being reviewed by our agency. You will be notified once approval is granted.</p><button onClick={() => { setRegistrationSuccess(false); setView('auth'); }} className="btn-primary px-8 py-3">Return to Login</button></div></div>;
         }
         return <PerformerRegistration onBack={() => setView('auth')} onSuccess={() => setRegistrationSuccess(true)} />;
       case 'profile': {
@@ -575,13 +575,13 @@ const App: React.FC = () => {
       case 'services_page': return <ServicesPage onBack={handleReturnToGallery} />;
       case 'contact_us': return <ContactUs onBack={handleReturnToGallery} onSubmit={handleContactSubmit} />;
       case 'admin_dashboard':
-         if (userProfile?.role !== 'admin') return <p>Access Denied</p>;
+         if (userProfile?.role !== 'admin') return <p>Access Restricted: Credentials Required.</p>;
         return <AdminDashboard bookings={bookings} performers={performers} doNotServeList={doNotServeList} onUpdateBookingStatus={handleUpdateBookingStatus} onUpdateDoNotServeStatus={handleUpdateDoNotServeStatus} onViewDoNotServe={handleViewDoNotServe} communications={communications} onAdminDecisionForPerformer={handleAdminBookingDecisionForPerformer} onAdminChangePerformer={handleAdminChangePerformer} onViewPerformer={handleViewProfile} isAutoVetEnabled={isAutoVetEnabled} onToggleAutoVet={(enabled) => setIsAutoVetEnabled(enabled)} onAddPerformer={handleCreatePerformer} onUpdatePerformer={handleUpdatePerformer} onDeletePerformer={handleDeletePerformer} />;
       case 'performer_dashboard': {
-        if (!['performer', 'admin'].includes(userProfile?.role || '')) return <p>Access Denied</p>;
+        if (!['performer', 'admin'].includes(userProfile?.role || '')) return <p>Access Restricted: Professional Login Required.</p>;
         const currentPerformerId = (userProfile?.role === 'performer' && userProfile.performer_id) ? userProfile.performer_id : currentPerformerIdForAdmin;
         const currentPerformer = performers.find(p => p.id === currentPerformerId);
-        return currentPerformer ? <PerformerDashboard performer={currentPerformer} bookings={bookings.filter(b => b.performer_id === currentPerformerId)} communications={communications.filter(c => c.recipient === currentPerformerId)} onToggleStatus={(status) => handlePerformerStatusChange(currentPerformer.id, status)} onViewDoNotServe={handleViewDoNotServe} onBookingDecision={handlePerformerBookingDecision} onReferralFeePaid={handleReferralFeePaid} /> : <p className="text-center text-gray-400">Select a profile to view dashboard.</p>;
+        return currentPerformer ? <PerformerDashboard performer={currentPerformer} bookings={bookings.filter(b => b.performer_id === currentPerformerId)} communications={communications.filter(c => c.recipient === currentPerformerId)} onToggleStatus={(status) => handlePerformerStatusChange(currentPerformer.id, status)} onViewDoNotServe={handleViewDoNotServe} onBookingDecision={handlePerformerBookingDecision} onReferralFeePaid={handleReferralFeePaid} /> : <p className="text-center text-zinc-400">Select professional profile.</p>;
       }
       case 'do_not_serve':
          const performerIdForDns = (userProfile?.role === 'performer') ? userProfile.performer_id : currentPerformerIdForAdmin;
@@ -590,21 +590,20 @@ const App: React.FC = () => {
       case 'future_bookings':
       default:
         const isAvailableNow = view === 'available_now';
-        const onlinePerformersCount = performers.filter(p => p.status === 'available').length;
+        const onlineCount = performers.filter(p => p.status === 'available').length;
 
         return (
           <div className="animate-fade-in">
-             {/* Hero Section */}
              <div className="py-12 md:py-24 text-center max-w-4xl mx-auto px-4">
                 <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 px-4 py-1.5 rounded-full mb-8">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Available Now: {onlinePerformersCount} Professionals</span>
+                  <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">{onlineCount} Performers Active: Available for Immediate Service</span>
                 </div>
                 <h1 className="text-5xl md:text-8xl font-logo-main text-white uppercase tracking-tighter leading-[0.8] mb-8">
-                  Secure Perth's <span className="text-orange-500">Elite Talent</span>
+                  Western Australia's <span className="text-orange-500">Elite Talent</span>
                 </h1>
                 <p className="text-zinc-400 text-lg md:text-xl font-medium leading-relaxed max-w-2xl mx-auto mb-12">
-                  Direct booking for Western Australia's most sought-after professional entertainers. Discretion, safety, and excellence guaranteed.
+                  Connecting you with Perth's most exclusive professional entertainers. Premium service, absolute discretion, and guaranteed excellence.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <button 
@@ -612,14 +611,14 @@ const App: React.FC = () => {
                       className={`btn-primary !px-10 !py-4 flex items-center gap-3 transition-all ${isAvailableNow ? 'ring-2 ring-orange-500 ring-offset-4 ring-offset-zinc-900' : 'opacity-80'}`}
                     >
                       <Zap size={20} className={isAvailableNow ? "animate-pulse" : ""} />
-                      BOOK ASAP
+                      BOOK NOW
                     </button>
                     <button 
                       onClick={() => setView('future_bookings')}
                       className={`px-10 py-4 rounded-xl border font-black text-[11px] uppercase tracking-widest transition-all ${!isAvailableNow ? 'bg-white/10 text-white border-white/20 ring-2 ring-white/10 ring-offset-4 ring-offset-zinc-900' : 'bg-white/5 text-zinc-400 border-white/5 hover:text-white'}`}
                     >
                       <CalendarCheck size={20} className="inline mr-2" />
-                      RESERVE FUTURE DATE
+                      RESERVE A FUTURE DATE
                     </button>
                 </div>
              </div>
@@ -643,8 +642,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-       <Header view={view} onNavigate={handleNavigation} userProfile={userProfile} communications={communications} onMarkRead={handleMarkCommunicationsRead} onViewUserSettings={handleViewUserSettings} searchQuery={searchQuery} onSearchChange={handleSearchChange} session={session} onSignInClick={handleSignInClick} onSignOut={async () => { const { error } = await api.signOut(); if (error) setError("Could not sign out."); }} performers={performers} currentPerformerIdForAdmin={currentPerformerIdForAdmin} onPerformerChangeForAdmin={setCurrentPerformerIdForAdmin} >
-        <div className="flex items-center gap-4">{viewRole === 'user' && selectedForBooking.length > 0 && (<button onClick={() => handleProceedToBooking(false)} className="btn-primary flex items-center gap-2 text-sm px-4 py-2 uppercase font-black tracking-widest"><ShoppingCart className="h-4 w-4" />Review ({selectedForBooking.length})</button>)}</div>
+       <Header view={view} onNavigate={handleNavigation} userProfile={userProfile} communications={communications} onMarkRead={handleMarkCommunicationsRead} onViewUserSettings={handleViewUserSettings} searchQuery={searchQuery} onSearchChange={handleSearchChange} session={session} onSignInClick={handleSignInClick} onSignOut={async () => { const { error } = await api.signOut(); if (error) setError("Sign out error."); }} performers={performers} currentPerformerIdForAdmin={currentPerformerIdForAdmin} onPerformerChangeForAdmin={setCurrentPerformerIdForAdmin} >
+        <div className="flex items-center gap-4">{viewRole === 'user' && selectedForBooking.length > 0 && (<button onClick={() => handleProceedToBooking(false)} className="btn-primary flex items-center gap-2 text-sm px-4 py-2 uppercase font-black tracking-widest"><ShoppingCart className="h-4 w-4" />Review Inquiry ({selectedForBooking.length})</button>)}</div>
       </Header>
       <main className="flex-grow container mx-auto px-4 py-2 md:py-6">{renderContent()}</main>
       <Footer onShowPrivacyPolicy={handleShowPrivacyPolicy} onShowTermsOfService={handleShowTermsOfService} onShowServicesPage={handleShowServicesPage} onShowContactUs={handleShowContactUs} />

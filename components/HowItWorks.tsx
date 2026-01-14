@@ -5,32 +5,32 @@ import { Search, ShieldCheck, CreditCard, Zap, ArrowRight, Lock } from 'lucide-r
 const steps = [
   {
     id: '01',
-    title: 'Browse',
-    description: 'Elite roster.',
+    title: 'Discovery',
+    description: 'Elite Asset Portfolio.',
     icon: Search,
     color: 'text-orange-500',
     bgColor: 'bg-orange-500/10'
   },
   {
     id: '02',
-    title: 'Request',
-    description: 'Instant alert.',
+    title: 'Inquiry',
+    description: 'Dispatch Lead Sent.',
     icon: Zap,
     color: 'text-yellow-400',
     bgColor: 'bg-yellow-400/10'
   },
   {
     id: '03',
-    title: 'Vetting',
-    description: 'Safety check.',
+    title: 'Security',
+    description: 'Discretion Review.',
     icon: ShieldCheck,
     color: 'text-emerald-400',
     bgColor: 'bg-emerald-400/10'
   },
   {
     id: '04',
-    title: 'Confirm',
-    description: 'Secure pay.',
+    title: 'Lock',
+    description: 'Confirmed Secure.',
     icon: CreditCard,
     color: 'text-sky-400',
     bgColor: 'bg-sky-400/10'
@@ -49,15 +49,15 @@ const HowItWorks: React.FC = () => {
           <div className="flex flex-row items-center justify-between gap-4 mb-8">
             <div className="flex flex-col">
               <h2 className="font-logo-main text-2xl md:text-4xl text-white tracking-tight uppercase leading-none">
-                Direct <span className="text-orange-500">Workflow</span>
+                Discreet <span className="text-orange-500">Dispatch</span>
               </h2>
               <p className="text-zinc-600 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-1">
-                Secure & Discreet
+                Elite Professional Flow
               </p>
             </div>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-orange-500/5 border border-orange-500/10 rounded-full w-fit">
                <Lock size={10} className="text-orange-500" />
-               <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">Discretion Guaranteed</span>
+               <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">Confidential Process</span>
             </div>
           </div>
 

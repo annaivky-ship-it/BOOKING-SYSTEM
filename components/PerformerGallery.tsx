@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Briefcase, ChevronDown, MapPin, Radio, Search, Zap, ShoppingCart, X, ArrowRight, Filter } from 'lucide-react';
+import { Briefcase, ChevronDown, MapPin, Radio, Search, Zap, ShoppingCart, X, ArrowRight, Filter, Crown, Star, RotateCcw, Users } from 'lucide-react';
 import type { Performer, PerformerStatus } from '../types';
 import { allServices, WA_REGIONS } from '../data/mockData';
 import PerformerCard from './EntertainerCard';
@@ -13,6 +14,51 @@ interface PerformerGalleryProps {
   selectedIds: number[];
   searchQuery: string;
   viewMode: 'available_now' | 'future_bookings';
+}
+
+const FeaturedPerformerCard: React.FC<{
+    performer: Performer;
+    onViewProfile: (p: Performer) => void;
+    onBook: (p: Performer) => void;
+}> = ({ performer, onViewProfile, onBook }) => {
+    return (
+        <div 
+            onClick={() => onViewProfile(performer)}
+            className="group relative h-[500px] rounded-[3rem] overflow-hidden border border-orange-500/20 shadow-2xl transition-all hover:border-orange-500/50 cursor-pointer"
+        >
+            <img src={performer.photo_url} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt={performer.name} />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+            
+            <div className="absolute top-6 left-6 flex items-centre gap-2 bg-orange-500 text-white px-4 py-2 rounded-2xl shadow-xl z-20">
+                <Crown size={16} fill="white" />
+                <span className="text-[10px] font-black uppercase tracking-widest">PREMIER ASSET</span>
+            </div>
+
+            <div className="absolute bottom-10 left-10 right-10 z-20 space-y-4">
+                <div className="flex items-centre gap-2">
+                    <div className="flex text-yellow-400">
+                        {[...Array(5)].map((_, i) => <Star key={i} size={12} fill="currentColor" />)}
+                    </div>
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Vetted Elite</span>
+                </div>
+                <div>
+                    <h3 className="font-logo-main text-6xl text-white uppercase tracking-tighter leading-none mb-2">{performer.name}</h3>
+                    <p className="text-orange-400 text-sm font-black uppercase tracking-[0.2em]">{performer.tagline}</p>
+                </div>
+                <div className="flex gap-4 pt-2">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onBook(performer); }}
+                        className="btn-primary !px-8 !py-4 !rounded-2xl !text-[10px] font-black shadow-xl shadow-orange-500/20"
+                    >
+                        INITIATE DISPATCH
+                    </button>
+                    <button className="bg-white/10 hover:bg-white/20 backdrop-blur-xl px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all">
+                        VIEW PROFILE
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 const PerformerGallery: React.FC<PerformerGalleryProps> = ({
@@ -47,148 +93,123 @@ const PerformerGallery: React.FC<PerformerGalleryProps> = ({
   const selectedCount = selectedIds.length;
   const isAvailableNow = viewMode === 'available_now';
 
-  // Get name of first selected performer if only one is selected
-  const selectedName = useMemo(() => {
-    if (selectedCount === 1) {
-      return performers.find(p => p.id === selectedIds[0])?.name;
-    }
-    return null;
-  }, [selectedIds, performers, selectedCount]);
-
-  const handleClearSelection = () => {
-    selectedIds.forEach(id => {
-      const p = performers.find(perf => perf.id === id);
-      if (p) onToggleSelection(p);
-    });
+  const handleResetFilters = () => {
+    setCategoryFilter('');
+    setAreaFilter('');
+    setStatusFilter('');
   };
 
   return (
-    <div className="animate-fade-in space-y-10 pb-32">
-      {/* Sticky Action Bar: Center-bottom on Mobile, Floating-right on Desktop */}
+    <div className="animate-fade-in space-y-20 pb-32">
       <div 
         className={`fixed z-[70] transition-all duration-500 transform 
           bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-lg
           md:left-auto md:right-8 md:translate-x-0 md:w-80
           ${selectedCount > 0 ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-24 opacity-0 scale-95 pointer-events-none'}`}
       >
-        <div className="glass !bg-zinc-900/95 !backdrop-blur-3xl border-orange-500/40 rounded-[2rem] p-3 flex flex-col md:gap-4 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] border-2">
-           <div className="flex items-center justify-between px-2 md:px-4 md:pt-2">
-              <div className="flex items-center gap-3">
+        <div className="glass !bg-zinc-900/95 !backdrop-blur-3xl border-orange-500/40 rounded-[2rem] p-3 flex flex-col md:gap-4 shadow-2xl border-2">
+           <div className="flex items-centre justify-between px-2 md:px-4 md:pt-2">
+              <div className="flex items-centre gap-3">
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-centre justify-centre text-white">
                     <ShoppingCart size={18} strokeWidth={3} />
                   </div>
                   {selectedCount > 1 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black text-[10px] font-black flex items-center justify-center border-2 border-zinc-900">
+                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-black text-[10px] font-black flex items-centre justify-centre border-2 border-zinc-900">
                       {selectedCount}
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col">
-                   <p className="text-white font-black text-[11px] uppercase tracking-widest leading-none">
-                      {selectedName ? selectedName : `${selectedCount} Talent Selected`}
-                   </p>
-                   <button 
-                    onClick={handleClearSelection}
-                    className="text-zinc-500 hover:text-red-400 text-[8px] font-black uppercase tracking-[0.2em] mt-1 text-left transition-colors flex items-center gap-1 group/clear"
-                  >
-                    <X size={10} className="group-hover/clear:rotate-90 transition-transform" />
-                    Clear Selection
-                  </button>
-                </div>
+                <p className="text-white font-black text-[11px] uppercase tracking-widest">{selectedCount} Assets Selected</p>
               </div>
-
-              {/* Mobile layout keeps Book Now next to info, Desktop moves it below */}
               <button 
                 onClick={() => onProceedToBooking(isAvailableNow)}
-                className="md:hidden btn-primary !py-3 !px-6 !rounded-xl !text-[10px] font-black flex items-center gap-2 group/btn shadow-xl shadow-orange-500/20"
+                className="btn-primary !py-3 !px-6 !rounded-xl !text-[10px] font-black"
               >
-                BOOK NOW
-                <ArrowRight size={14} />
+                DISPATCH
               </button>
            </div>
-
-           {/* Desktop Book Now Button (Full Width) */}
            <button 
             onClick={() => onProceedToBooking(isAvailableNow)}
-            className="hidden md:flex btn-primary !w-full !py-5 !rounded-2xl !text-[11px] font-black items-center justify-center gap-3 group/btn shadow-xl shadow-orange-500/20 active:scale-95"
+            className="hidden md:flex btn-primary !w-full !py-5 !rounded-2xl !text-[11px] font-black items-centre justify-centre shadow-xl"
            >
-            INITIATE BOOKING
-            <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+            INITIATE DISPATCH
            </button>
         </div>
       </div>
 
-      {/* Simplified Filter Bar */}
-      <div className="bg-zinc-950/40 border border-white/5 rounded-[2rem] p-4 md:p-6 backdrop-blur-xl shadow-2xl max-w-5xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative group">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-orange-500 transition-colors" />
-                <select
-                    onChange={(e) => setAreaFilter(e.target.value)}
-                    value={areaFilter}
-                    className="input-base !pl-12 !py-3.5 !text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer border-transparent bg-zinc-900/50 hover:bg-zinc-900"
-                >
-                    <option value="">Any Location</option>
-                    {WA_REGIONS.map((area) => <option key={area} value={area}>{area.toUpperCase()}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-600 pointer-events-none" />
+      <div className="space-y-12">
+          {/* Simplified operational filters */}
+          <div className="bg-zinc-950/40 border border-white/5 rounded-[2.5rem] p-6 md:p-8 backdrop-blur-xl shadow-2xl max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Location</label>
+                    <select
+                        onChange={(e) => setAreaFilter(e.target.value)}
+                        value={areaFilter}
+                        className="input-base !py-4 !text-[11px] font-black uppercase tracking-widest appearance-none cursor-pointer border-white/5 bg-zinc-900/60"
+                    >
+                        <option value="">All Regions</option>
+                        {WA_REGIONS.map((area) => <option key={area} value={area}>{area.toUpperCase()}</option>)}
+                    </select>
+                </div>
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Service Type</label>
+                    <select
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        value={categoryFilter}
+                        className="input-base !py-4 !text-[11px] font-black uppercase tracking-widest appearance-none cursor-pointer border-white/5 bg-zinc-900/60"
+                    >
+                        <option value="">All Categories</option>
+                        {uniqueCategories.map((cat) => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
+                    </select>
+                </div>
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Availability</label>
+                    <select
+                        onChange={(e) => setStatusFilter(e.target.value as PerformerStatus | '')}
+                        value={statusFilter}
+                        className="input-base !py-4 !text-[11px] font-black uppercase tracking-widest appearance-none cursor-pointer border-white/5 bg-zinc-900/60"
+                        disabled={isAvailableNow}
+                    >
+                        {isAvailableNow ? (
+                          <option value="available">Available Now</option>
+                        ) : (
+                          <>
+                            <option value="">Any Status</option>
+                            <option value="available">Available Now</option>
+                            <option value="unavailable">Engaged</option>
+                          </>
+                        )}
+                    </select>
+                </div>
             </div>
-
-            <div className="relative group">
-                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-orange-500 transition-colors" />
-                <select
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    value={categoryFilter}
-                    className="input-base !pl-12 !py-3.5 !text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer border-transparent bg-zinc-900/50 hover:bg-zinc-900"
-                >
-                    <option value="">Any Service</option>
-                    {uniqueCategories.map((cat) => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-600 pointer-events-none" />
+            
+            <div className="mt-8 pt-6 border-t border-white/5 flex items-centre justify-between">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                  {filteredPerformers.length} Assets Identified
+              </span>
+              <div className="flex items-centre gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${isAvailableNow ? 'bg-green-500 shadow-lg' : 'bg-zinc-700'}`}></div>
+                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.3em]">
+                    {isAvailableNow ? 'LIVE DISPATCH REGISTRY ACTIVE' : 'REGISTRY SYNCHRONISED'}
+                </span>
+              </div>
             </div>
+          </div>
 
-            <div className="relative group">
-                <Radio className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600 group-focus-within:text-orange-500 transition-colors" />
-                <select
-                    onChange={(e) => setStatusFilter(e.target.value as PerformerStatus | '')}
-                    value={statusFilter}
-                    className="input-base !pl-12 !py-3.5 !text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer border-transparent bg-zinc-900/50 hover:bg-zinc-900"
-                >
-                    <option value="">Any Availability</option>
-                    <option value="available">Online Now</option>
-                    <option value="unavailable">Book Future</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-600 pointer-events-none" />
-            </div>
-        </div>
-      </div>
-
-      {/* Available Count Header */}
-      <div className="text-center max-w-2xl mx-auto px-4">
-        <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 px-4 py-1.5 rounded-full mb-4">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">
-            {performers.filter(p => p.status === 'available').length} Professionals Online Now
-          </span>
-        </div>
-        <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] leading-relaxed">
-          Select your favorite talent to check their arrival time for your location.
-        </p>
-      </div>
-
-      {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {filteredPerformers.map((performer) => (
-          <PerformerCard
-            key={performer.id}
-            performer={performer}
-            onViewProfile={onViewProfile}
-            onToggleSelection={onToggleSelection}
-            onBook={onBook}
-            isSelected={selectedIds.includes(performer.id)}
-          />
-        ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {filteredPerformers.map((performer) => (
+              <PerformerCard
+                key={performer.id}
+                performer={performer}
+                onViewProfile={onViewProfile}
+                onToggleSelection={onToggleSelection}
+                onBook={onBook}
+                isSelected={selectedIds.includes(performer.id)}
+              />
+            ))}
+          </div>
       </div>
     </div>
   );
