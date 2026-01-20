@@ -37,7 +37,7 @@ export default function SignupPage() {
 
       // Create user profile
       const { error: profileError } = await supabase
-        .from('users')
+        .from('profiles')
         .insert({
           id: authData.user.id,
           email,
@@ -55,7 +55,7 @@ export default function SignupPage() {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');
-    } finally{
+    } finally {
       setLoading(false);
     }
   }
@@ -94,11 +94,10 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => setRole('client')}
-              className={`p-6 rounded-xl border-2 transition-all ${
-                role === 'client'
+              className={`p-6 rounded-xl border-2 transition-all ${role === 'client'
                   ? 'border-magenta-500 bg-magenta-500/10'
                   : 'border-gray-700 hover:border-gray-600'
-              }`}
+                }`}
             >
               <Briefcase className="w-8 h-8 mx-auto mb-3 text-magenta-500" />
               <div className="font-semibold">I'm a Client</div>
@@ -108,11 +107,10 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => setRole('performer')}
-              className={`p-6 rounded-xl border-2 transition-all ${
-                role === 'performer'
+              className={`p-6 rounded-xl border-2 transition-all ${role === 'performer'
                   ? 'border-magenta-500 bg-magenta-500/10'
                   : 'border-gray-700 hover:border-gray-600'
-              }`}
+                }`}
             >
               <Users2 className="w-8 h-8 mx-auto mb-3 text-magenta-500" />
               <div className="font-semibold">I'm a Performer</div>
