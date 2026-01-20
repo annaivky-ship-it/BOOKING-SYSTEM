@@ -1,0 +1,76 @@
+﻿Running "install" command: `npm install --legacy-peer-deps`...
+
+up to date, audited 510 packages in 5s
+
+192 packages are looking for funding
+  run `npm fund` for details
+
+4 vulnerabilities (1 moderate, 2 high, 1 critical)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+Detected Next.js version: 15.5.6
+Running "next build"
+   Γû▓ Next.js 15.5.6
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ┬╖ serverActions
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 3.7s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/12) ...
+   Generating static pages (3/12) 
+   Generating static pages (6/12) 
+   Generating static pages (9/12) 
+ Γ£ô Generating static pages (12/12)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+Γöî ╞Æ /                                      162 B         106 kB
+Γö£ Γùï /_not-found                            993 B         103 kB
+Γö£ ╞Æ /api/blacklist                         139 B         102 kB
+Γö£ ╞Æ /api/bookings                          139 B         102 kB
+Γö£ ╞Æ /api/bookings/[id]/accept              139 B         102 kB
+Γö£ ╞Æ /api/bookings/[id]/decline             139 B         102 kB
+Γö£ ╞Æ /api/bookings/[id]/eta                 139 B         102 kB
+Γö£ ╞Æ /api/payid/verify                      139 B         102 kB
+Γö£ ╞Æ /api/vetting                           139 B         102 kB
+Γö£ ╞Æ /dashboard                           5.37 kB         199 kB
+Γö£ Γùï /login                               1.99 kB         160 kB
+Γö£ Γùï /performers                           2.4 kB         196 kB
+Γö£ ╞Æ /performers/[id]/book                3.66 kB         145 kB
+Γöö Γùï /signup                              2.78 kB         161 kB
++ First Load JS shared by all             102 kB
+  Γö£ chunks/255-cf2e1d3491ac955b.js       45.7 kB
+  Γö£ chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
+  Γöö other shared chunks (total)          1.99 kB
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+
+Traced Next.js server files in: 294.208ms
+Tracing entries due to missing build traces:
+[
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/_not-found/page.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/performers/[id]/book/page.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/login/page.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/performers/page.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/dashboard/page.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/signup/page.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/blacklist/route.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/bookings/[id]/accept/route.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/bookings/[id]/decline/route.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/bookings/route.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/payid/verify/route.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/bookings/[id]/eta/route.js",
+  "C:/Users/annai/OneDrive/Documents/GitHub/BOOKING-SYSTEM/.next/server/app/api/vetting/route.js"
+]: 2.316s
+Created all serverless functions in: 2.461s
+Collected static files (public/, static/, .next/static): 5.374ms
