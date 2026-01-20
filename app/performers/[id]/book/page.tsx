@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import BookingForm from '@/components/BookingForm';
+import ConnectedBookingWizard from '@/components/ConnectedBookingWizard';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import type { Performer, Booking } from '@/types';
 
 export default async function BookPerformerPage({
   params,
@@ -23,7 +24,7 @@ export default async function BookPerformerPage({
 
   // Get user profile
   const { data: clientProfile } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
@@ -33,16 +34,28 @@ export default async function BookPerformerPage({
   }
 
   // Get performer details
-  const { data: performer } = await supabase
-    .from('users')
+  const { data: performerData } = await supabase
+    .from('performers')
     .select('*')
     .eq('id', id)
-    .eq('role', 'performer')
+    .eq('status', 'available') // Only available performers
     .single();
 
-  if (!performer) {
+  if (!performerData) {
     redirect('/performers');
   }
+
+  // Map DB performer to Type performer (add missing fields if needed)
+  const performer: Performer = {
+    ...performerData,
+    // Ensure strict typing or fallback
+  } as unknown as Performer; // leveraging unknown cast if DB types essentially match logic
+
+  // Get client's previous bookings (for verification logic in BookingProcess)
+  const { data: clientBookings } = await supabase
+    .from('bookings')
+    .select('*, performer:performers(*)') // Fix relation query
+    .eq('client_email', clientProfile.email); // Assuming email link
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -67,18 +80,13 @@ export default async function BookPerformerPage({
         </div>
       </div>
 
-      {/* Booking Form */}
+      {/* Booking Wizard */}
       <div className="container mx-auto px-6 py-12">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">
-              Book <span className="bg-gradient-magenta bg-clip-text text-transparent">{performer.full_name}</span>
-            </h1>
-            <p className="text-gray-400">Fill in the details to create your booking</p>
-          </div>
-
-          <BookingForm performer={performer} client={clientProfile} />
-        </div>
+        <ConnectedBookingWizard
+          performers={[performer]}
+          client={clientProfile}
+          previousBookings={(clientBookings as unknown as Booking[]) || []}
+        />
       </div>
     </div>
   );
